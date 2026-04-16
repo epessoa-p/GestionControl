@@ -1,0 +1,81 @@
+Sistema CRM para control
+Informe de Requerimientos – Sistema tipo CRM de Control y Gestión
+1. Objetivo del sistema
+Desarrollar un sistema tipo CRM que permita llevar un control integral del negocio, centralizando operaciones comerciales, inventarios, producción, cajas y comisiones, con el fin de mejorar el seguimiento, la toma de decisiones y la transparencia de la información.
+________________________________________
+2. Alcance general
+El sistema permitirá:
+•	Registrar y controlar operaciones diarias.
+•	Gestionar inventarios y producción.
+•	Administrar ventas, promotores y comisiones.
+•	Controlar movimientos de caja y costos.
+•	Obtener reportes claros y trazables.
+________________________________________
+3. Módulos y funcionalidades
+3.1 Seguimientos
+•	Seguimiento de operaciones, clientes, ventas o procesos internos.
+•	Historial de acciones por usuario/fecha.
+•	Estados (pendiente, en proceso, finalizado).
+________________________________________
+3.2 Inventarios
+•	Registro de productos y materias primas.
+•	Stock actual en tiempo real.
+•	Alertas por stock mínimo.
+•	Kardex / historial de movimientos.
+________________________________________
+3.3 Entradas
+•	Registro de ingresos de mercadería o insumos.
+•	Asociación a proveedor, fecha y responsable.
+•	Impacto automático en inventario.
+________________________________________
+3.4 Salidas
+•	Registro de egresos por venta, producción u otros motivos.
+•	Asociación a área, venta o producción.
+•	Impacto automático en inventario.
+________________________________________
+3.5 Cajas (Apertura y Cierre)
+•	Apertura de caja por usuario y fecha.
+•	Registro de ingresos y egresos.
+•	Cierre de caja con balance automático.
+•	Diferencias y observaciones.
+________________________________________
+3.6 Caja Chica
+•	Control independiente de gastos menores.
+•	Registro de egresos con concepto.
+•	Saldo disponible.
+•	Reportes por período.
+________________________________________
+3.7 Producción
+a) Control de costos
+•	Registro de costos directos e indirectos.
+•	Cálculo de costo por producto/proceso.
+b) Control de materia prima
+•	Consumo de materias primas por producción.
+•	Descuento automático de inventario.
+•	Relación producción ↔ stock ↔ costos.
+________________________________________
+3.8 Promotores
+•	Registro de promotores/vendedores.
+•	Asignación de ventas.
+•	Historial de desempeño.
+________________________________________
+3.9 Ventas
+•	Registro de ventas.
+•	Asociación a cliente, promotor y productos.
+•	Formas de pago.
+•	Impacto en inventario y caja.
+________________________________________
+3.10 Comisiones
+•	Cálculo automático de comisiones según ventas.
+•	Porcentaje configurable.
+•	Reportes por promotor y período.
+•	Estado de comisión (pendiente / pagada).
+________________________________________
+4. Reportes esperados
+•	Ventas por período
+•	Comisiones generadas
+•	Movimientos de caja
+•	Stock y valorización de inventarios
+•	Costos de producción
+•	Rentabilidad
+
