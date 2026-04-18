@@ -1,0 +1,152 @@
+GUIA RAPIDA: IMAGENES EN PRODUCCION (LARAVEL)
+=============================================
+
+Objetivo
+--------
+Evitar que las imagenes subidas (logos, portadas, comprobantes, etc.) no se vean en produccion.
+
+Aplica para cualquier proyecto Laravel en hosting compartido o VPS.
+
+
+1) Configuracion .env (PRODUCCION)
+----------------------------------
+Editar el archivo .env y validar:
+
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://TU-DOMINIO.COM
+FILESYSTEM_DISK=public
+
+Importante:
+- APP_URL NO debe ser localhost en produccion.
+- Usa https si tu sitio ya tiene SSL.
+
+
+2) Conexion SSH desde Windows (PowerShell)
+-------------------------------------------
+Si es tu primera vez, crea tu llave SSH en tu PC:
+
+ssh-keygen -t ed25519 -C "tu-correo@dominio.com"
+
+Obtener la clave publica para pegar en el panel hosting (Acceso SSH):
+
+Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub"
+
+Copiar clave al portapapeles (opcional):
+
+Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub" | Set-Clipboard
+
+Conectarte por SSH usando tu llave privada (RECOMENDADO):
+
+ssh -i "$env:USERPROFILE\.ssh\id_ed25519" sczsoft.net@ssh.gb.stackcp.com
+
+Comentario:
+- El parametro -i indica que use esa llave privada.
+- Si es la primera conexion, responde yes cuando pregunte por fingerprint.
+- Si el hosting ya toma por defecto tu llave, tambien puede funcionar:
+
+ssh sczsoft.net@ssh.gb.stackcp.com
+
+
+3) Entrar al proyecto Laravel en el servidor
+--------------------------------------------
+Una vez dentro por SSH, entrar a la carpeta donde esta artisan.
+
+Ejemplo:
+cd ~/www/mi_proyecto
+ls -la | grep artisan
+
+Si no sabes donde esta artisan:
+find ~/www -maxdepth 5 -name artisan
+
+
+4) Ejecutar comandos de Laravel
+-------------------------------
+Usar el binario de PHP disponible en el hosting.
+
+Si "php" normal funciona:
+php artisan optimize:clear
+php artisan storage:link
+
+Si el hosting requiere ruta explicita (ejemplo StackCP):
+/usr/php83/usr/bin/php artisan optimize:clear
+/usr/php83/usr/bin/php artisan storage:link
+
+
+5) Si el enlace ya existe o esta mal
+------------------------------------
+Dentro del proyecto:
+rm -rf public/storage
+php artisan storage:link
+php artisan optimize:clear
+
+(En algunos hostings: usar /usr/php83/usr/bin/php en lugar de php)
+
+
+6) Verificar que el enlace quedo bien
+-------------------------------------
+ls -la public | grep storage
+readlink public/storage
+
+Resultado esperado:
+public/storage -> ../storage/app/public
+
+
+7) Verificar que los archivos existen fisicamente
+-------------------------------------------------
+Ejemplo (ajusta segun tu modulo):
+ls -la storage/app/public/companies/logos
+ls -la storage/app/public/companies/covers
+
+
+8) Probar URL directa en navegador
+----------------------------------
+https://TU-DOMINIO.COM/storage/companies/logos/ARCHIVO.png
+
+Si abre en navegador, Laravel ya esta sirviendo imagenes correctamente.
+
+
+9) Checklist rapido de errores comunes
+--------------------------------------
+[ ] APP_URL en localhost (incorrecto en produccion)
+[ ] FILESYSTEM_DISK distinto de public
+[ ] No se ejecuto storage:link
+[ ] Enlace public/storage roto o apuntando mal
+[ ] Imagen no existe en storage/app/public
+[ ] Cache de config vieja (falta optimize:clear)
+[ ] Permisos de storage/cache insuficientes
+
+
+10) Permisos recomendados (si aplica)
+-------------------------------------
+chmod -R 775 storage bootstrap/cache
+
+Nota:
+- En hosting compartido, a veces no se permite chown; usar solo chmod.
+
+
+11) Flujo recomendado para cada deploy
+--------------------------------------
+1. Subir codigo
+2. Ajustar .env de produccion
+3. php artisan optimize:clear
+4. php artisan storage:link (o recrear enlace)
+5. Verificar URL de imagen directa
+6. Probar modulo de subida en la app
+
+
+12) Comandos usados en esta implementacion
+------------------------------------------
+cd ~/www/prestamos
+ls -la | grep artisan
+ssh -i "$env:USERPROFILE\.ssh\id_ed25519" sczsoft.net@ssh.gb.stackcp.com
+php artisan storage:link
+
+Salida esperada:
+INFO The [public/storage] link has been connected to [storage/app/public].
+
+
+Fin de guia
+-----------
+Guarda este archivo para futuros proyectos de gestion y control.
+Reutiliza el mismo flujo en cada despliegue.

@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Promoter;
 use App\Models\Sale;
 use App\Models\SaleDetail;
+use App\Models\SaleInstallment;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -65,6 +66,7 @@ class SaleController extends Controller
                 'branch_id' => 'nullable|exists:branches,id',
                 'warehouse_id' => 'nullable|exists:warehouses,id',
                 'payment_method' => 'required|in:cash,card,transfer,credit,other',
+                'sale_type' => 'required|in:cash,credit',
                 'tax' => 'nullable|numeric|min:0',
                 'discount' => 'nullable|numeric|min:0',
                 'notes' => 'nullable|string',
@@ -73,6 +75,10 @@ class SaleController extends Controller
                 'items.*.quantity' => 'required|numeric|min:0.01',
                 'items.*.unit_price' => 'required|numeric|min:0',
                 'items.*.discount' => 'nullable|numeric|min:0',
+                'installments' => 'nullable|array',
+                'installments.*.due_date' => 'required_if:sale_type,credit|date',
+                'installments.*.amount' => 'required_if:sale_type,credit|numeric|min:0',
+                'installments.*.percentage' => 'nullable|numeric|min:0|max:100',
             ]);
 
             $companyId = $this->getCompanyId();
@@ -99,6 +105,7 @@ class SaleController extends Controller
                     'branch_id' => $validated['branch_id'] ?? null,
                     'warehouse_id' => $validated['warehouse_id'] ?? null,
                     'payment_method' => $validated['payment_method'],
+                    'sale_type' => $validated['sale_type'] ?? 'cash',
                     'subtotal' => $subtotal,
                     'tax' => $tax,
                     'discount' => $discount,
@@ -107,6 +114,26 @@ class SaleController extends Controller
                     'notes' => $validated['notes'] ?? null,
                     'created_by' => auth()->id(),
                 ]);
+
+                // Create installments for credit sales
+                if (($validated['sale_type'] ?? 'cash') === 'credit' && !empty($validated['installments'])) {
+                    $installmentCount = count($validated['installments']);
+                    $sale->update([
+                        'credit_total_installments' => $installmentCount,
+                        'credit_status' => 'pending',
+                    ]);
+
+                    foreach ($validated['installments'] as $idx => $inst) {
+                        SaleInstallment::create([
+                            'sale_id' => $sale->id,
+                            'installment_number' => $idx + 1,
+                            'due_date' => $inst['due_date'],
+                            'amount' => $inst['amount'],
+                            'percentage' => $inst['percentage'] ?? 0,
+                            'status' => 'pending',
+                        ]);
+                    }
+                }
 
                 foreach ($validated['items'] as $item) {
                     $lineDiscount = $item['discount'] ?? 0;
@@ -149,7 +176,7 @@ class SaleController extends Controller
     public function show(Sale $sale)
     {
         $this->authorizeRecord($sale);
-        $sale->load(['details.product', 'promoter', 'branch', 'warehouse', 'createdBy', 'commissions', 'company']);
+        $sale->load(['details.product', 'promoter', 'branch', 'warehouse', 'createdBy', 'commissions', 'company', 'installments']);
         return view('sales.show', compact('sale'));
     }
 
@@ -200,6 +227,49 @@ class SaleController extends Controller
         } catch (\Throwable $e) {
             Log::error('Error al cancelar venta', ['id' => $sale->id, 'message' => $e->getMessage()]);
             return back()->with('error', 'No fue posible cancelar la venta.');
+        }
+    }
+
+    public function payInstallment(Request $request, Sale $sale, SaleInstallment $installment)
+    {
+        $this->authorizeRecord($sale);
+        if ($installment->sale_id !== $sale->id) { abort(404); }
+        if ($installment->status === 'paid') {
+            return back()->with('error', 'Esta cuota ya está pagada.');
+        }
+
+        $validated = $request->validate([
+            'pay_amount' => 'required|numeric|min:0.01|max:' . $installment->remaining,
+            'pay_method' => 'required|in:cash,card,transfer,other',
+            'pay_notes' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            DB::transaction(function () use ($sale, $installment, $validated) {
+                $newPaid = $installment->paid_amount + $validated['pay_amount'];
+                $status = $newPaid >= $installment->amount ? 'paid' : 'partial';
+
+                $installment->update([
+                    'paid_amount' => $newPaid,
+                    'status' => $status,
+                    'payment_method' => $validated['pay_method'],
+                    'notes' => $validated['pay_notes'] ?? $installment->notes,
+                    'paid_at' => $status === 'paid' ? now() : null,
+                    'paid_by' => $status === 'paid' ? auth()->id() : null,
+                ]);
+
+                // Recalculate credit totals on the sale
+                $totalPaid = $sale->installments()->sum('paid_amount');
+                $allPaid = $sale->installments()->where('status', '!=', 'paid')->count() === 0;
+                $sale->update([
+                    'credit_paid_amount' => $totalPaid,
+                    'credit_status' => $allPaid ? 'paid' : ($totalPaid > 0 ? 'partial' : 'pending'),
+                ]);
+            });
+            return back()->with('success', 'Pago registrado exitosamente.');
+        } catch (\Throwable $e) {
+            Log::error('Error al registrar pago de cuota', ['message' => $e->getMessage()]);
+            return back()->with('error', 'No fue posible registrar el pago.');
         }
     }
 

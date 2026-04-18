@@ -44,6 +44,7 @@
                             <th>Fecha</th>
                             <th>Cliente</th>
                             <th>Promotor</th>
+                            <th>Tipo</th>
                             <th>Pago</th>
                             <th class="text-end">Total</th>
                             <th>Estado</th>
@@ -57,6 +58,7 @@
                                 <td>{{ $sale->sale_date?->format('d/m/Y') }}</td>
                                 <td>{{ $sale->client_name ?: '-' }}</td>
                                 <td>{{ $sale->promoter?->name ?? '-' }}</td>
+                                <td><span class="badge bg-{{ ($sale->sale_type ?? 'cash') === 'credit' ? 'warning text-dark' : 'info' }}">{{ \App\Models\Sale::SALE_TYPE_LABELS[$sale->sale_type ?? 'cash'] ?? 'Contado' }}</span></td>
                                 <td><span class="badge bg-secondary">{{ \App\Models\Sale::PAYMENT_LABELS[$sale->payment_method] ?? $sale->payment_method }}</span></td>
                                 <td class="text-end fw-semibold">${{ number_format($sale->total, 2) }}</td>
                                 <td><span class="badge bg-{{ \App\Models\Sale::STATUS_COLORS[$sale->status] ?? 'secondary' }}">{{ \App\Models\Sale::STATUS_LABELS[$sale->status] ?? $sale->status }}</span></td>

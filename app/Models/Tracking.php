@@ -29,8 +29,14 @@ class Tracking extends Model
     const STATUS_LABELS = [
         'pending' => 'Pendiente', 'in_progress' => 'En proceso', 'completed' => 'Finalizado',
     ];
+    const STATUS_COLORS = [
+        'pending' => 'secondary', 'in_progress' => 'warning', 'completed' => 'success',
+    ];
     const PRIORITY_LABELS = [
         'low' => 'Baja', 'medium' => 'Media', 'high' => 'Alta', 'urgent' => 'Urgente',
+    ];
+    const PRIORITY_COLORS = [
+        'low' => 'secondary', 'medium' => 'info', 'high' => 'warning', 'urgent' => 'danger',
     ];
     const TYPE_LABELS = [
         'operation' => 'Operación', 'client' => 'Cliente', 'sale' => 'Venta', 'internal' => 'Interno',

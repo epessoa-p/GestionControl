@@ -1,0 +1,206 @@
+RESUMEN IMPLEMENTACION - AJUSTE TAMANO SMALL (PEQUENO) EN PLANTILLAS
+Fecha: 2026-04-17
+Contexto: gestion y control de produccion
+
+OBJETIVO
+- Estandarizar soporte de tamano pequeno (80mm) para plantillas de impresion.
+- Priorizar plantillas pequenas en pantallas operativas (ordenes, control, despacho, recepcion, etc.).
+- Dejar base de datos, logica y UI listas para usar plantillas pequenas y media carta.
+
+CAMBIOS REALIZADOS
+
+1) BASE DE DATOS - CAMPO paper_size
+- Se agrego columna paper_size en document_templates:
+  ENUM('grande','mediano','pequeno')
+- Valor por defecto: 'grande'
+- Semantica:
+  - grande  = carta
+  - mediano = media carta
+  - pequeno = recibo termico 80mm
+
+2) MODELO DE PLANTILLAS
+- Se agrego paper_size a fillable.
+- Se definieron catalogos:
+  - PAPER_SIZES
+  - PAPER_SIZE_CSS
+- CSS de pequeno:
+  - width: 80mm
+  - min-height: auto
+  - page: size: 80mm auto
+- Ajuste recomendado para firmas o imagenes en pequeno:
+  - alto sugerido pequeno: 40px
+  - alto sugerido normal: 70px
+
+3) ORDEN Y PRIORIDAD DE PLANTILLAS
+- En consultas de plantillas, ordenar por prioridad de tamano:
+  pequeno -> mediano -> grande
+- Al seleccionar plantilla por defecto, usar primero pequeno y luego fallback al primero disponible.
+
+4) INTEGRACION EN UI OPERATIVA
+- En cada pantalla operativa que imprima documentos:
+  - Mostrar selector de plantilla.
+  - Mostrar etiqueta de tamano en cada opcion.
+  - Dejar pequeno como opcion preseleccionada si existe.
+- Aplicar el mismo patron en cualquier flujo (produccion, calidad, almacen, despacho).
+
+5) SCRIPT DE DATOS - PLANTILLAS BASE
+- Crear script SQL idempotente (INSERT ... SELECT ... WHERE NOT EXISTS).
+- Cargar al menos dos variantes por documento operativo:
+  - Variante media carta (mediano)
+  - Variante termica (pequeno)
+- Usar nombres de plantillas claros por proceso (ejemplo):
+  - Ticket Orden Produccion - Pequeno
+  - Ticket Orden Produccion - Media Carta
+  - Ticket Control Calidad - Pequeno
+  - Ticket Control Calidad - Media Carta
+
+CHECKLIST PARA REPLICAR EN OTRO PROYECTO
+
+A. BD
+[ ] Agregar columna paper_size en document_templates
+[ ] Verificar enum: grande, mediano, pequeno
+
+B. MODELO
+[ ] Incluir paper_size en fillable
+[ ] Definir PAPER_SIZES y PAPER_SIZE_CSS
+[ ] Soportar CSS de impresion para 80mm
+
+C. CONSULTAS/LOGICA
+[ ] Ordenar templates priorizando pequeno
+[ ] Definir fallback cuando no exista pequeno
+
+D. UI
+[ ] Mostrar selector de plantilla por pantalla/accion
+[ ] Etiquetar cada opcion con su tamano
+[ ] Seleccionar pequeno por defecto si existe
+
+E. DATOS INICIALES
+[ ] Crear script idempotente de plantillas base
+[ ] Cargar variantes mediano y pequeno por proceso operativo
+
+NOTAS IMPORTANTES
+- El motor de placeholders define que datos se pueden imprimir.
+- Si necesitas campos nuevos (ej: lote, maquina, turno, operario, merma), agrega placeholders al reemplazo del modelo antes de usarlos en plantillas.
+- Si no se encuentran plantillas por tipo/contexto, usar fallback a una coleccion general para no romper UI.
+
+PROMPT SUGERIDO PARA OTRO PROYECTO
+"Lee el archivo RESUMEN_AJUSTE_TAMANO_PEQUENO_TEMPLATES.txt y aplica exactamente este patron:
+1) soporte paper_size con pequeno,
+2) prioridad de pequeno en seleccion,
+3) selector de plantilla por pantalla operativa,
+4) script SQL idempotente para plantillas base,
+5) validacion final sin errores."
+
+
+ADICIONES Y AJUSTES TRANSVERSALES (FUNCIONALIDAD)
+--------------------------------------------------
+
+6) PERMISSIONS (SLUGS DINAMICOS + MENU)
+- Se estandarizo control de acceso por slugs leidos desde base de datos (tabla permissions).
+- La autorizacion se aplica en:
+  - rutas (middleware por slug o conjunto de slugs),
+  - controladores (validaciones de accion por empresa/contexto),
+  - UI (menu de navegacion y botones visibles segun permiso).
+- Regla base:
+  - backend SIEMPRE valida permiso aunque el boton no se muestre en UI.
+- Patron recomendado:
+  - usar slugs declarativos por modulo/accion (ej: loans.view, loans.amortize, cash-registers.operate).
+  - mantener scripts SQL idempotentes para crear nuevos slugs y asignacion a roles.
+
+Checklist Permissions:
+[ ] Definir slugs por modulo (view/create/edit/delete/operate/report)
+[ ] Proteger rutas con middleware por slug
+[ ] Aplicar validacion en controlador por empresa actual
+[ ] Ocultar/mostrar opciones del menu segun hasPermissionInCompany
+[ ] Crear script SQL idempotente para nuevos permisos y role_permission
+
+
+7) FLUJO Y ESTRUCTURA DE CAJA
+- Se consolido flujo operativo de caja:
+  - caja asignada por personal,
+  - apertura de sesion de caja,
+  - registro de movimientos/pagos durante sesion abierta,
+  - cierre de sesion con monto final.
+- Se agrego cierre por denominaciones (billetes/monedas/centavos):
+  - calcula total automaticamente,
+  - persiste desglose en JSON (closing_breakdown),
+  - mantiene closing_amount para reportes y conciliacion.
+- Se mejoro UX del modal de cierre:
+  - layout ancho,
+  - panel de resumen,
+  - captura rapida de denominaciones.
+
+Checklist Caja:
+[ ] Validar caja asignada y activa por usuario/personal
+[ ] Bloquear operaciones criticas sin sesion abierta
+[ ] Registrar apertura/cierre con usuario y timestamp
+[ ] Guardar closing_amount y closing_breakdown
+[ ] Exponer resumen en vista de sesiones/reportes
+
+
+8) MODULO: CATALOGO
+- Se consolido modulo de catalogo para mostrar productos/publicaciones con soporte visual.
+- Estandares aplicados:
+  - imagenes servidas desde disco public/storage,
+  - estructura preparada para logo y portada,
+  - vistas publicas/privadas con fallback cuando faltan recursos.
+- Recomendacion:
+  - definir placeholders o campos visuales consistentes para branding de empresa.
+
+Checklist Catalogo:
+[ ] Definir modelo y relaciones (items, imagenes, empresa)
+[ ] Soportar portada/logo y fallback visual
+[ ] Validar permisos de acceso por rol/empresa
+[ ] Verificar URLs publicas de imagenes (/storage/...)
+
+
+9) MODULO: MOVIMIENTO
+- Se centralizo criterio de movimientos (caja, inventario, pagos/egresos) con trazabilidad.
+- Estandares:
+  - cada movimiento con origen, tipo, monto y referencia,
+  - asociacion a empresa, usuario y sesion de caja cuando corresponda,
+  - filtros por rango de fechas y estado para reportes.
+- Recomendacion:
+  - mantener consistencia entre movimiento contable y evidencia (comprobante/nota).
+
+Checklist Movimiento:
+[ ] Definir tipos de movimiento (ingreso/egreso/ajuste)
+[ ] Relacionar con sesion de caja cuando aplique
+[ ] Guardar referencia y notas operativas
+[ ] Incluir filtros/reportes por fecha, usuario, modulo
+
+
+10) CONFIGURACION DE EMPRESA
+- Se amplio configuracion visual de empresa:
+  - logo,
+  - imagen de portada,
+  - datos fiscales y de contacto.
+- Se incorporo UX moderna en crear/editar:
+  - drag & drop para imagenes,
+  - previsualizacion antes de guardar,
+  - validacion de formato/tamano.
+- Se reflejo branding en:
+  - cabecera/menu del sistema,
+  - vistas de detalle/listado,
+  - plantillas y documentos (cuando aplique).
+
+Checklist Configuracion Empresa:
+[ ] Campos DB para logo y portada
+[ ] Validacion de archivos (tipo y peso)
+[ ] Subida a storage/app/public + storage:link
+[ ] Previsualizacion en formularios
+[ ] Mostrar branding en menu/vistas principales
+
+
+PROMPT SUGERIDO (VERSION AMPLIADA)
+"Lee el archivo RESUMEN_AJUSTE_TAMANO_PEQUENO_TEMPLATES.txt y aplica exactamente este patron completo:
+1) soporte paper_size con pequeno,
+2) prioridad de pequeno en seleccion,
+3) selector de plantilla por pantalla operativa,
+4) script SQL idempotente para plantillas base,
+5) permisos por slugs en rutas/controladores/menu,
+6) flujo completo de caja con cierre por denominaciones,
+7) implementacion de modulo catalogo,
+8) implementacion de modulo movimiento,
+9) configuracion visual de empresa (logo+portada),
+10) validacion final sin errores."

@@ -51,6 +51,16 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('transfers.*') ? 'active' : '' }}" href="{{ route('transfers.index') }}">
+                    <i class="bi bi-arrow-left-right"></i> Traspasos
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">
+                    <i class="bi bi-clipboard2-data"></i> Órdenes
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('productions.*') ? 'active' : '' }}" href="{{ route('productions.index') }}">
                     <i class="bi bi-gear-wide-connected"></i> Produccion
                 </a>
@@ -119,6 +129,11 @@
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">
                     <i class="bi bi-box-seam"></i> Productos
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('measurement-units.*') ? 'active' : '' }}" href="{{ route('measurement-units.index') }}">
+                    <i class="bi bi-rulers"></i> Unidades de medida
                 </a>
             </li>
             <li class="nav-item">
@@ -248,6 +263,8 @@
                 <li><a class="nav-link app-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">Entradas</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('departures.*') ? 'active' : '' }}" href="{{ route('departures.index') }}">Salidas</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('sales.*') ? 'active' : '' }}" href="{{ route('sales.index') }}">Ventas</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('transfers.*') ? 'active' : '' }}" href="{{ route('transfers.index') }}">Traspasos</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">Órdenes</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('productions.*') ? 'active' : '' }}" href="{{ route('productions.index') }}">Produccion</a></li>
             </ul>
             <div class="sidebar-section-title mt-3">Finanzas</div>
@@ -272,6 +289,7 @@
                 @endif
                 <li><a class="nav-link app-link {{ request()->routeIs('branches.*') ? 'active' : '' }}" href="{{ route('branches.index') }}">Sucursales</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">Productos</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('measurement-units.*') ? 'active' : '' }}" href="{{ route('measurement-units.index') }}">Unidades de medida</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">Almacenes</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}">Cargos</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('personal.*') ? 'active' : '' }}" href="{{ route('personal.index') }}">Personal</a></li>

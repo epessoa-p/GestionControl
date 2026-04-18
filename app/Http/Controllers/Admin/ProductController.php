@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\MeasurementUnit;
 use App\Models\Product;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -13,7 +14,7 @@ class ProductController extends Controller
     public function index()
     {
         $user = auth()->user();
-        $query = Product::with('company')->latest();
+        $query = Product::with(['company', 'measurementUnit'])->latest();
 
         if (!$user->is_super_admin) {
             $query->where('company_id', $user->getCurrentCompany()?->id);
@@ -29,6 +30,7 @@ class ProductController extends Controller
 
         return view('admin.products.create', [
             'companies' => $user->is_super_admin ? Company::orderBy('name')->get() : collect([$user->getCurrentCompany()])->filter(),
+            'measurementUnits' => MeasurementUnit::query()->where('active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -43,14 +45,17 @@ class ProductController extends Controller
                 'name' => 'required|string|max:255',
                 'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')],
                 'description' => 'nullable|string',
-                'unit' => 'required|string|max:50',
+                'measurement_unit_id' => ['required', 'exists:measurement_units,id'],
                 'cost' => 'required|numeric|min:0',
                 'price' => 'required|numeric|min:0',
                 'active' => 'sometimes|boolean',
             ]);
 
+            $measurementUnit = MeasurementUnit::findOrFail($validated['measurement_unit_id']);
+
             Product::create([
                 ...$validated,
+                'unit' => $measurementUnit->symbol ?: $measurementUnit->name,
                 'company_id' => $companyId,
                 'active' => request()->boolean('active', true),
             ]);
@@ -70,6 +75,7 @@ class ProductController extends Controller
         return view('admin.products.edit', [
             'product' => $product,
             'companies' => $user->is_super_admin ? Company::orderBy('name')->get() : collect([$user->getCurrentCompany()])->filter(),
+            'measurementUnits' => MeasurementUnit::query()->where('active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -86,14 +92,17 @@ class ProductController extends Controller
                 'name' => 'required|string|max:255',
                 'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product->id)],
                 'description' => 'nullable|string',
-                'unit' => 'required|string|max:50',
+                'measurement_unit_id' => ['required', 'exists:measurement_units,id'],
                 'cost' => 'required|numeric|min:0',
                 'price' => 'required|numeric|min:0',
                 'active' => 'sometimes|boolean',
             ]);
 
+            $measurementUnit = MeasurementUnit::findOrFail($validated['measurement_unit_id']);
+
             $product->update([
                 ...$validated,
+                'unit' => $measurementUnit->symbol ?: $measurementUnit->name,
                 'company_id' => $companyId,
                 'active' => request()->boolean('active', false),
             ]);

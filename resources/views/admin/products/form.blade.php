@@ -36,7 +36,20 @@
 
                 <div class="col-md-6">
                     <label class="form-label">Unidad</label>
-                    <input type="text" name="unit" class="form-control" value="{{ old('unit', $product?->unit ?? 'unidad') }}" required>
+                    <div class="d-flex gap-2">
+                        <select name="measurement_unit_id" class="form-select js-measurement-unit-select @error('measurement_unit_id') is-invalid @enderror" required>
+                            <option value="">Selecciona una unidad</option>
+                            @foreach($measurementUnits as $measurementUnit)
+                                <option value="{{ $measurementUnit->id }}" {{ (string) old('measurement_unit_id', $product ? $product->measurement_unit_id : 1) === (string) $measurementUnit->id ? 'selected' : '' }}>
+                                    {{ $measurementUnit->name }} ({{ $measurementUnit->symbol }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <a href="{{ route('measurement-units.index') }}" class="btn btn-outline-secondary" title="Gestionar unidades">
+                            <i class="bi bi-gear"></i>
+                        </a>
+                    </div>
+                    @error('measurement_unit_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                 </div>
 
                 <div class="col-md-6">
@@ -84,3 +97,37 @@
         </div>
     </div>
 </div>
+
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container .select2-selection--single {
+        height: calc(2.25rem + 2px);
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 1.8rem;
+        padding-left: 0.25rem;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: calc(2.25rem + 2px);
+    }
+</style>
+@endpush
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(function () {
+        $('.js-measurement-unit-select').select2({
+            width: '100%',
+            placeholder: 'Selecciona una unidad',
+            allowClear: true
+        });
+    });
+</script>
+@endpush

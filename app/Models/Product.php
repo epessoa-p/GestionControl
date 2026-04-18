@@ -17,6 +17,7 @@ class Product extends Model
         'sku',
         'description',
         'unit',
+        'measurement_unit_id',
         'cost',
         'price',
         'min_stock',
@@ -37,6 +38,11 @@ class Product extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function measurementUnit(): BelongsTo
+    {
+        return $this->belongsTo(MeasurementUnit::class);
     }
 
     public function isLowStock(): bool

@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\CargoController;
 use App\Http\Controllers\Admin\PersonalController;
 use App\Http\Controllers\Admin\WarehouseController;
+use App\Http\Controllers\Admin\MeasurementUnitController;
 use App\Http\Controllers\DocumentTemplates\DocumentTemplateController;
 use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\EntryController;
@@ -19,6 +20,8 @@ use App\Http\Controllers\PettyCashController;
 use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\PromoterController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\WarehouseTransferController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
@@ -110,6 +113,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
         Route::put('/{product}', [ProductController::class, 'update'])->name('update');
         Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('admin/measurement-units')->name('measurement-units.')->group(function () {
+        Route::get('/', [MeasurementUnitController::class, 'index'])->name('index');
+        Route::get('/create', [MeasurementUnitController::class, 'create'])->name('create');
+        Route::post('/', [MeasurementUnitController::class, 'store'])->name('store');
+        Route::get('/{measurementUnit}/edit', [MeasurementUnitController::class, 'edit'])->name('edit');
+        Route::put('/{measurementUnit}', [MeasurementUnitController::class, 'update'])->name('update');
+        Route::delete('/{measurementUnit}', [MeasurementUnitController::class, 'destroy'])->name('destroy');
     });
 
     Route::prefix('admin/warehouses')->name('warehouses.')->group(function () {
@@ -213,7 +225,30 @@ Route::middleware('auth')->group(function () {
         Route::get('/{sale}', [SaleController::class, 'show'])->name('show');
         Route::post('/{sale}/complete', [SaleController::class, 'complete'])->name('complete');
         Route::post('/{sale}/cancel', [SaleController::class, 'cancel'])->name('cancel');
+        Route::post('/{sale}/installments/{installment}/pay', [SaleController::class, 'payInstallment'])->name('pay-installment');
         Route::delete('/{sale}', [SaleController::class, 'destroy'])->name('destroy');
+    });
+
+    // ─── Traspasos entre Almacenes ───
+    Route::prefix('transfers')->name('transfers.')->group(function () {
+        Route::get('/', [WarehouseTransferController::class, 'index'])->name('index');
+        Route::get('/create', [WarehouseTransferController::class, 'create'])->name('create');
+        Route::post('/', [WarehouseTransferController::class, 'store'])->name('store');
+        Route::get('/{transfer}', [WarehouseTransferController::class, 'show'])->name('show');
+        Route::post('/{transfer}/dispatch', [WarehouseTransferController::class, 'dispatch'])->name('dispatch');
+        Route::post('/{transfer}/complete', [WarehouseTransferController::class, 'complete'])->name('complete');
+        Route::post('/{transfer}/cancel', [WarehouseTransferController::class, 'cancel'])->name('cancel');
+        Route::delete('/{transfer}', [WarehouseTransferController::class, 'destroy'])->name('destroy');
+    });
+
+    // ─── Órdenes / Pedidos ───
+    Route::prefix('orders')->name('orders.')->group(function () {
+        Route::get('/', [OrderController::class, 'index'])->name('index');
+        Route::get('/create', [OrderController::class, 'create'])->name('create');
+        Route::post('/', [OrderController::class, 'store'])->name('store');
+        Route::get('/{order}', [OrderController::class, 'show'])->name('show');
+        Route::post('/{order}/update-status', [OrderController::class, 'updateStatus'])->name('update-status');
+        Route::delete('/{order}', [OrderController::class, 'destroy'])->name('destroy');
     });
 
     // ─── Comisiones ───
