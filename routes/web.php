@@ -18,6 +18,7 @@ use App\Http\Controllers\DepartureController;
 use App\Http\Controllers\CashRegisterController;
 use App\Http\Controllers\PettyCashController;
 use App\Http\Controllers\ProductionController;
+use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\PromoterController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\WarehouseTransferController;
@@ -204,6 +205,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/{production}', [ProductionController::class, 'show'])->name('show');
         Route::post('/{production}/status', [ProductionController::class, 'updateStatus'])->name('update-status');
         Route::delete('/{production}', [ProductionController::class, 'destroy'])->name('destroy');
+    });
+
+    // ─── Recetas ───
+    Route::prefix('recipes')->name('recipes.')->group(function () {
+        Route::get('/', [RecipeController::class, 'index'])->name('index');
+        Route::get('/create', [RecipeController::class, 'create'])->name('create');
+        Route::post('/', [RecipeController::class, 'store'])->name('store');
+        Route::get('/by-product/{productId}', [RecipeController::class, 'byProduct'])->name('by-product');
+        Route::get('/{recipe}/edit', [RecipeController::class, 'edit'])->name('edit');
+        Route::put('/{recipe}', [RecipeController::class, 'update'])->name('update');
+        Route::delete('/{recipe}', [RecipeController::class, 'destroy'])->name('destroy');
+        Route::get('/{recipe}/items', [RecipeController::class, 'items'])->name('items');
+        Route::get('/{recipe}', [RecipeController::class, 'show'])->name('show');
     });
 
     // ─── Promotores ───

@@ -13,24 +13,36 @@ class ProductController extends Controller
 {
     public function index()
     {
-        $user = auth()->user();
-        $query = Product::with(['company', 'measurementUnit'])->latest();
+        $user      = auth()->user();
+        $activeTab = request('tab', 'PRODUCTO FINAL');
+        $companyId = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
 
-        if (!$user->is_super_admin) {
-            $query->where('company_id', $user->getCurrentCompany()?->id);
-        }
+        $base = fn() => Product::query()
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId));
 
-        return view('admin.products.index', ['products' => $query->paginate(15)]);
+        $products = $base()
+            ->with(['company', 'measurementUnit'])
+            ->where('category', $activeTab)
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        $counts = [
+            'PRODUCTO FINAL' => $base()->where('category', 'PRODUCTO FINAL')->count(),
+            'MATERIA PRIMA'  => $base()->where('category', 'MATERIA PRIMA')->count(),
+        ];
+
+        return view('admin.products.index', compact('products', 'activeTab', 'counts'));
     }
 
     public function create()
     {
         $user = auth()->user();
-        $companyId = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
 
         return view('admin.products.create', [
-            'companies' => $user->is_super_admin ? Company::orderBy('name')->get() : collect([$user->getCurrentCompany()])->filter(),
+            'companies'       => $user->is_super_admin ? Company::orderBy('name')->get() : collect([$user->getCurrentCompany()])->filter(),
             'measurementUnits' => MeasurementUnit::query()->where('active', true)->orderBy('name')->get(),
+            'defaultCategory' => request('category', ''),
         ]);
     }
 
@@ -48,6 +60,9 @@ class ProductController extends Controller
                 'measurement_unit_id' => ['required', 'exists:measurement_units,id'],
                 'cost' => 'required|numeric|min:0',
                 'price' => 'required|numeric|min:0',
+                'category' => ['nullable', 'string', 'max:50'],
+                'current_stock' => ['nullable', 'numeric', 'min:0'],
+                'min_stock' => ['nullable', 'numeric', 'min:0'],
                 'active' => 'sometimes|boolean',
             ]);
 
@@ -95,6 +110,9 @@ class ProductController extends Controller
                 'measurement_unit_id' => ['required', 'exists:measurement_units,id'],
                 'cost' => 'required|numeric|min:0',
                 'price' => 'required|numeric|min:0',
+                'category' => ['nullable', 'string', 'max:50'],
+                'current_stock' => ['nullable', 'numeric', 'min:0'],
+                'min_stock' => ['nullable', 'numeric', 'min:0'],
                 'active' => 'sometimes|boolean',
             ]);
 

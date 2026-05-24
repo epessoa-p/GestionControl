@@ -64,7 +64,12 @@
 
                 <div class="col-md-4">
                     <label class="form-label">Categoría</label>
-                    <input type="text" name="category" class="form-control" value="{{ old('category', $product?->category) }}" placeholder="Ej: Materia prima, Producto terminado">
+                    <select name="category" class="form-select">
+                        <option value="">Selecciona una categoría</option>
+                        @foreach(['MATERIA PRIMA', 'PRODUCTO FINAL'] as $cat)
+                            <option value="{{ $cat }}" {{ old('category', $product?->category ?? ($defaultCategory ?? '')) === $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div class="col-md-4">

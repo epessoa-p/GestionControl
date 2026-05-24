@@ -65,6 +65,11 @@
                     <i class="bi bi-gear-wide-connected"></i> Produccion
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('recipes.*') ? 'active' : '' }}" href="{{ route('recipes.index') }}">
+                    <i class="bi bi-journal-text"></i> Recetas
+                </a>
+            </li>
         </ul>
 
         <div class="sidebar-section-title mt-4">Finanzas</div>
@@ -266,6 +271,7 @@
                 <li><a class="nav-link app-link {{ request()->routeIs('transfers.*') ? 'active' : '' }}" href="{{ route('transfers.index') }}">Traspasos</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">Órdenes</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('productions.*') ? 'active' : '' }}" href="{{ route('productions.index') }}">Produccion</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('recipes.*') ? 'active' : '' }}" href="{{ route('recipes.index') }}">Recetas</a></li>
             </ul>
             <div class="sidebar-section-title mt-3">Finanzas</div>
             <ul class="nav flex-column gap-1">

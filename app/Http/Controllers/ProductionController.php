@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Production;
+use App\Models\Recipe;
 use App\Models\ProductionCost;
 use App\Models\ProductionMaterial;
 use Illuminate\Http\Request;
@@ -35,12 +36,13 @@ class ProductionController extends Controller
     {
         $companyId = $this->getCompanyId();
         return view('productions.create', [
-            'production' => null,
-            'products' => Product::where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
-            'rawMaterials' => Product::where('company_id', $companyId)->where('active', true)->where('category', 'raw_material')->orderBy('name')->get(),
-            'batchNumber' => Production::generateBatchNumber($companyId),
-            'action' => route('productions.store'),
-            'method' => 'POST',
+            'production'  => null,
+            'products'     => Product::where('company_id', $companyId)->where('active', true)->where('category', 'PRODUCTO FINAL')->orderBy('name')->get(),
+            'rawMaterials' => Product::where('company_id', $companyId)->where('active', true)->where('category', 'MATERIA PRIMA')->orderBy('name')->get(),
+            'recipes'      => Recipe::where('company_id', $companyId)->where('status', 'activa')->orderBy('name')->get(),
+            'batchNumber'  => Production::generateBatchNumber($companyId),
+            'action'       => route('productions.store'),
+            'method'       => 'POST',
         ]);
     }
 
