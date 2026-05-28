@@ -45,6 +45,16 @@ class Product extends Model
         return $this->belongsTo(MeasurementUnit::class);
     }
 
+    public function images(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderByDesc('is_primary')->orderBy('sort_order');
+    }
+
+    public function primaryImage(): ?\App\Models\ProductImage
+    {
+        return $this->images->firstWhere('is_primary', true) ?? $this->images->first();
+    }
+
     public function isLowStock(): bool
     {
         return $this->current_stock <= $this->min_stock && $this->min_stock > 0;

@@ -116,6 +116,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
         Route::put('/{product}', [ProductController::class, 'update'])->name('update');
         Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
+        Route::delete('/{product}/images/{image}', [ProductController::class, 'destroyImage'])->name('images.destroy');
+        Route::post('/{product}/images/{image}/primary', [ProductController::class, 'setPrimaryImage'])->name('images.primary');
     });
 
     Route::prefix('admin/measurement-units')->name('measurement-units.')->group(function () {

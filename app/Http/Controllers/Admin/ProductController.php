@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\MeasurementUnit;
 use App\Models\Product;
+use App\Models\ProductImage;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
@@ -46,38 +49,41 @@ class ProductController extends Controller
         ]);
     }
 
-    public function store()
+    public function store(Request $request)
     {
         try {
-            $user = auth()->user();
-            $companyId = $user->is_super_admin ? request('company_id') : $user->getCurrentCompany()?->id;
+            $user      = auth()->user();
+            $companyId = $user->is_super_admin ? $request->input('company_id') : $user->getCurrentCompany()?->id;
 
-            $validated = request()->validate([
-                'company_id' => ['nullable', 'exists:companies,id'],
-                'name' => 'required|string|max:255',
-                'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')],
-                'description' => 'nullable|string',
+            $validated = $request->validate([
+                'company_id'          => ['nullable', 'exists:companies,id'],
+                'name'                => 'required|string|max:255',
+                'sku'                 => ['required', 'string', 'max:100', Rule::unique('products', 'sku')],
+                'description'         => 'nullable|string',
                 'measurement_unit_id' => ['required', 'exists:measurement_units,id'],
-                'cost' => 'required|numeric|min:0',
-                'price' => 'required|numeric|min:0',
-                'category' => ['nullable', 'string', 'max:50'],
-                'current_stock' => ['nullable', 'numeric', 'min:0'],
-                'min_stock' => ['nullable', 'numeric', 'min:0'],
-                'active' => 'sometimes|boolean',
+                'cost'                => 'required|numeric|min:0',
+                'price'               => 'required|numeric|min:0',
+                'category'            => ['nullable', 'string', 'max:50'],
+                'current_stock'       => ['nullable', 'numeric', 'min:0'],
+                'min_stock'           => ['nullable', 'numeric', 'min:0'],
+                'active'              => 'sometimes|boolean',
+                'images.*'            => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:5120',
             ]);
 
             $measurementUnit = MeasurementUnit::findOrFail($validated['measurement_unit_id']);
 
-            Product::create([
+            $product = Product::create([
                 ...$validated,
-                'unit' => $measurementUnit->symbol ?: $measurementUnit->name,
+                'unit'       => $measurementUnit->symbol ?: $measurementUnit->name,
                 'company_id' => $companyId,
-                'active' => request()->boolean('active', true),
+                'active'     => $request->boolean('active', true),
             ]);
 
+            $this->handleImageUploads($request, $product, (int) $request->input('primary_image_index', 0));
+
             return redirect()->route('products.index')->with('success', 'Producto creado exitosamente.');
-        } catch (\Throwable $exception) {
-            Log::error('Error al crear producto', ['message' => $exception->getMessage()]);
+        } catch (\Throwable $e) {
+            Log::error('Error al crear producto', ['message' => $e->getMessage()]);
             return back()->withInput()->withErrors(['error' => 'No fue posible crear el producto.']);
         }
     }
@@ -86,49 +92,123 @@ class ProductController extends Controller
     {
         $this->authorizeProduct($product);
         $user = auth()->user();
+        $product->load('images');
 
         return view('admin.products.edit', [
-            'product' => $product,
-            'companies' => $user->is_super_admin ? Company::orderBy('name')->get() : collect([$user->getCurrentCompany()])->filter(),
+            'product'          => $product,
+            'companies'        => $user->is_super_admin ? Company::orderBy('name')->get() : collect([$user->getCurrentCompany()])->filter(),
             'measurementUnits' => MeasurementUnit::query()->where('active', true)->orderBy('name')->get(),
         ]);
     }
 
-    public function update(Product $product)
+    public function update(Request $request, Product $product)
     {
         $this->authorizeProduct($product);
 
         try {
-            $user = auth()->user();
-            $companyId = $user->is_super_admin ? request('company_id', $product->company_id) : $product->company_id;
+            $user      = auth()->user();
+            $companyId = $user->is_super_admin ? $request->input('company_id', $product->company_id) : $product->company_id;
 
-            $validated = request()->validate([
-                'company_id' => ['nullable', 'exists:companies,id'],
-                'name' => 'required|string|max:255',
-                'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product->id)],
-                'description' => 'nullable|string',
+            $validated = $request->validate([
+                'company_id'          => ['nullable', 'exists:companies,id'],
+                'name'                => 'required|string|max:255',
+                'sku'                 => ['required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product->id)],
+                'description'         => 'nullable|string',
                 'measurement_unit_id' => ['required', 'exists:measurement_units,id'],
-                'cost' => 'required|numeric|min:0',
-                'price' => 'required|numeric|min:0',
-                'category' => ['nullable', 'string', 'max:50'],
-                'current_stock' => ['nullable', 'numeric', 'min:0'],
-                'min_stock' => ['nullable', 'numeric', 'min:0'],
-                'active' => 'sometimes|boolean',
+                'cost'                => 'required|numeric|min:0',
+                'price'               => 'required|numeric|min:0',
+                'category'            => ['nullable', 'string', 'max:50'],
+                'current_stock'       => ['nullable', 'numeric', 'min:0'],
+                'min_stock'           => ['nullable', 'numeric', 'min:0'],
+                'active'              => 'sometimes|boolean',
+                'images.*'            => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:5120',
             ]);
 
             $measurementUnit = MeasurementUnit::findOrFail($validated['measurement_unit_id']);
 
             $product->update([
                 ...$validated,
-                'unit' => $measurementUnit->symbol ?: $measurementUnit->name,
+                'unit'       => $measurementUnit->symbol ?: $measurementUnit->name,
                 'company_id' => $companyId,
-                'active' => request()->boolean('active', false),
+                'active'     => $request->boolean('active', false),
             ]);
 
+            $primaryIdx = (int) $request->input('primary_image_index', 0);
+            $hasExisting = $product->images()->exists();
+            $this->handleImageUploads($request, $product, $primaryIdx, !$hasExisting);
+
             return redirect()->route('products.index')->with('success', 'Producto actualizado exitosamente.');
-        } catch (\Throwable $exception) {
-            Log::error('Error al actualizar producto', ['product_id' => $product->id, 'message' => $exception->getMessage()]);
+        } catch (\Throwable $e) {
+            Log::error('Error al actualizar producto', ['product_id' => $product->id, 'message' => $e->getMessage()]);
             return back()->withInput()->withErrors(['error' => 'No fue posible actualizar el producto.']);
+        }
+    }
+
+    public function destroyImage(Product $product, ProductImage $image)
+    {
+        $this->authorizeProduct($product);
+
+        if ($image->product_id !== $product->id) {
+            abort(404);
+        }
+
+        try {
+            Storage::disk('public')->delete($image->filename);
+            $image->delete();
+
+            // Si era la principal, promover la siguiente
+            if ($image->is_primary) {
+                $next = $product->images()->first();
+                $next?->update(['is_primary' => true]);
+            }
+
+            return back()->with('success', 'Imagen eliminada.');
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar imagen de producto', ['image_id' => $image->id, 'message' => $e->getMessage()]);
+            return back()->with('error', 'No fue posible eliminar la imagen.');
+        }
+    }
+
+    public function setPrimaryImage(Product $product, ProductImage $image)
+    {
+        $this->authorizeProduct($product);
+
+        if ($image->product_id !== $product->id) {
+            abort(404);
+        }
+
+        $product->images()->update(['is_primary' => false]);
+        $image->update(['is_primary' => true]);
+
+        return back()->with('success', 'Imagen principal actualizada.');
+    }
+
+    private function handleImageUploads(Request $request, Product $product, int $primaryIndex = 0, bool $allowSetPrimary = true): void
+    {
+        if (!$request->hasFile('images')) {
+            return;
+        }
+
+        $files      = $request->file('images');
+        $hasPrimary = !$allowSetPrimary || $product->images()->where('is_primary', true)->exists();
+
+        foreach ($files as $idx => $file) {
+            $path = $file->store('products', 'public');
+            $isPrimary = !$hasPrimary && ($idx === $primaryIndex);
+
+            ProductImage::create([
+                'product_id'    => $product->id,
+                'filename'      => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type'     => $file->getMimeType(),
+                'size'          => $file->getSize(),
+                'is_primary'    => $isPrimary,
+                'sort_order'    => $product->images()->max('sort_order') + $idx + 1,
+            ]);
+
+            if ($isPrimary) {
+                $hasPrimary = true;
+            }
         }
     }
 
