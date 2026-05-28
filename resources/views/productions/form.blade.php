@@ -142,11 +142,73 @@
                     </div>
                 </div>
 
+                {{-- Section: Gastos indirectos (overhead) --}}
+                <div class="mb-2">
+                    <h6 class="fw-bold text-primary"><i class="bi bi-calculator me-1"></i> Gastos indirectos</h6>
+                    <hr class="mt-2">
+                </div>
+                @if(isset($overheadPeriod) && $overheadPeriod)
+                    @php
+                        $methodLabels = [
+                            'por_unidades' => 'Por unidades producidas',
+                            'por_orden'    => 'Por orden de producción',
+                            'tasa_fija'    => 'Tasa fija por unidad',
+                            'manual'       => 'Manual',
+                        ];
+                        $method = $distributionMethod ?? 'manual';
+                    @endphp
+                    <input type="hidden" name="overhead_period_id" value="{{ $overheadPeriod->id }}">
+                    <input type="hidden" name="overhead_method" value="{{ $method }}">
+                    <div class="rounded-3 border p-3 mb-4" style="background:#f8f9fa">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-7">
+                                <div class="d-flex flex-wrap gap-3 text-muted small mb-2">
+                                    <span><i class="bi bi-calendar-range me-1"></i> <strong>{{ $overheadPeriod->name }}</strong></span>
+                                    <span>Total: <strong class="text-dark">${{ number_format($overheadPeriod->total_amount, 2) }}</strong></span>
+                                    <span>Pendiente: <strong class="text-warning">${{ number_format($overheadPeriod->pendingAmount(), 2) }}</strong></span>
+                                </div>
+                                <div class="text-muted small">
+                                    Método: <strong class="text-dark">{{ $methodLabels[$method] ?? $method }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-semibold small mb-1">Monto a aplicar (overhead)</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" step="0.01" min="0"
+                                           name="overhead_amount"
+                                           id="overheadAmount"
+                                           class="form-control"
+                                           placeholder="0.00"
+                                           data-period-id="{{ $overheadPeriod->id }}"
+                                           data-method="{{ $method }}"
+                                           data-pending="{{ $overheadPeriod->pendingAmount() }}"
+                                           data-total="{{ $overheadPeriod->total_amount }}"
+                                           data-fixed-rate="{{ auth()->user()->getCurrentCompany()?->overhead_fixed_rate ?? 0 }}">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="calcOverhead" title="Calcular sugerido">
+                                        <i class="bi bi-magic"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">Déjalo en 0 para no asignar overhead a esta producción.</div>
+                            </div>
+                        </div>
+                    </div>
+                @else
+                    <div class="alert alert-light border mb-4 py-2 px-3 small">
+                        <i class="bi bi-info-circle me-1 text-muted"></i>
+                        Sin período de gastos activo. <a href="{{ route('overhead-periods.create') }}">Crear período</a> para registrar costos indirectos.
+                    </div>
+                    <input type="hidden" name="overhead_amount" value="0">
+                @endif
+
                 {{-- Resumen de totales --}}
                 <div class="d-flex justify-content-between align-items-center px-3 py-2 mb-4 rounded-3 border" style="background:#f8f9fa">
-                    <div class="d-flex gap-4 text-muted small">
+                    <div class="d-flex gap-4 text-muted small flex-wrap">
                         <span>Materiales: <strong id="matSummary" class="text-dark">$0.00</strong></span>
                         <span>Costos adicionales: <strong id="costSummary" class="text-dark">$0.00</strong></span>
+                        @if(isset($overheadPeriod) && $overheadPeriod)
+                            <span>Overhead: <strong id="overheadSummary" class="text-dark">$0.00</strong></span>
+                        @endif
                     </div>
                     <div>
                         <span class="text-muted small me-2">Total estimado:</span>
@@ -201,12 +263,17 @@
             costSum += parseFloat(i.value) || 0;
         });
 
+        const overheadInput = document.getElementById('overheadAmount');
+        const overheadSum   = overheadInput ? (parseFloat(overheadInput.value) || 0) : 0;
+
         const fmt = v => '$' + v.toFixed(2);
         document.getElementById('matSubtotal').textContent  = fmt(matSum);
         document.getElementById('matSummary').textContent   = fmt(matSum);
         document.getElementById('costSubtotal').textContent = fmt(costSum);
         document.getElementById('costSummary').textContent  = fmt(costSum);
-        document.getElementById('grandTotal').textContent   = fmt(matSum + costSum);
+        const overheadSummaryEl = document.getElementById('overheadSummary');
+        if (overheadSummaryEl) overheadSummaryEl.textContent = fmt(overheadSum);
+        document.getElementById('grandTotal').textContent   = fmt(matSum + costSum + overheadSum);
     }
 
     // ── Enlazar eventos en filas de material ──────────────────────
@@ -365,6 +432,35 @@
 
             bindMat(); calcTotals();
         } catch (e) { console.error('Error al cargar ingredientes de receta:', e); }
+    });
+
+    // ── Overhead: recalcular grand total cuando cambia el monto ──
+    const overheadInput = document.getElementById('overheadAmount');
+    overheadInput?.addEventListener('input', calcTotals);
+
+    // ── Overhead: botón calcular sugerido ─────────────────────────
+    document.getElementById('calcOverhead')?.addEventListener('click', function () {
+        const input   = document.getElementById('overheadAmount');
+        if (!input) return;
+        const method  = input.dataset.method;
+        const pending = parseFloat(input.dataset.pending) || 0;
+        const total   = parseFloat(input.dataset.total)   || 0;
+        const rate    = parseFloat(input.dataset.fixedRate) || 0;
+        const qty     = parseFloat(quantityInput?.value)   || 0;
+
+        let suggested = 0;
+        if (method === 'tasa_fija') {
+            suggested = rate * qty;
+        } else if (method === 'por_unidades' || method === 'por_orden') {
+            // Usar el servidor para calcular el valor exacto (requiere datos de otras producciones)
+            // Como fallback usamos el pendiente total
+            suggested = pending;
+        } else {
+            suggested = pending;
+        }
+
+        input.value = suggested.toFixed(2);
+        calcTotals();
     });
 
     // ── Inicializar ───────────────────────────────────────────────

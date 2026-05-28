@@ -5,7 +5,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="mb-1"><i class="bi bi-unlock text-success me-2"></i>Abrir sesión</h1>
-            <p class="text-muted mb-0">{{ $cashRegister->name }} — Asigna personal y monto de apertura</p>
+            <p class="text-muted mb-0">{{ $cashRegister->name }} — Ingresa el monto de apertura</p>
         </div>
         <a href="{{ route('cash-registers.show', $cashRegister) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Volver</a>
     </div>
@@ -19,16 +19,31 @@
                 <div class="card-body p-4 pt-3">
                     <form action="{{ route('cash-registers.open-session', $cashRegister) }}" method="POST" class="row g-3">
                         @csrf
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Personal asignado <span class="text-danger">*</span></label>
-                            <select name="personal_id" class="form-select @error('personal_id') is-invalid @enderror" required>
-                                <option value="">Seleccionar...</option>
-                                @foreach($personals as $p)
-                                    <option value="{{ $p->id }}" {{ (string)old('personal_id') === (string)$p->id ? 'selected' : '' }}>{{ $p->full_name }}</option>
-                                @endforeach
-                            </select>
-                            @error('personal_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
+
+                        {{-- Personal: si la caja tiene uno asignado lo muestra sin selector; si no, permite elegir --}}
+                        @if($cashRegister->assignedPersonal)
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Personal asignado</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-success bg-opacity-10"><i class="bi bi-person-check text-success"></i></span>
+                                    <input type="text" class="form-control" value="{{ $cashRegister->assignedPersonal->full_name }}" readonly>
+                                </div>
+                                <small class="text-muted">Personal configurado en la caja. Se asignará automáticamente a la sesión.</small>
+                            </div>
+                        @else
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Personal <span class="text-danger">*</span></label>
+                                <select name="personal_id" class="form-select @error('personal_id') is-invalid @enderror" required>
+                                    <option value="">Seleccionar personal...</option>
+                                    @foreach($personals as $p)
+                                        <option value="{{ $p->id }}" {{ (string)old('personal_id') === (string)$p->id ? 'selected' : '' }}>{{ $p->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('personal_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                <small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Esta caja no tiene personal asignado. Considera asignarlo en la configuración de la caja.</small>
+                            </div>
+                        @endif
+
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Monto de apertura <span class="text-danger">*</span></label>
                             <div class="input-group">
@@ -37,9 +52,13 @@
                             </div>
                             @error('opening_amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-12">
-                            <hr class="my-2">
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Notas de apertura</label>
+                            <input type="text" name="opening_notes" class="form-control" value="{{ old('opening_notes') }}" placeholder="Observación opcional">
                         </div>
+
+                        <div class="col-12"><hr class="my-2"></div>
                         <div class="col-12 d-flex gap-2">
                             <button class="btn btn-success" type="submit"><i class="bi bi-unlock me-1"></i> Abrir caja</button>
                             <a href="{{ route('cash-registers.show', $cashRegister) }}" class="btn btn-light border">Cancelar</a>

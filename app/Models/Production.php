@@ -39,12 +39,14 @@ class Production extends Model
     public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function costs(): HasMany { return $this->hasMany(ProductionCost::class); }
     public function materials(): HasMany { return $this->hasMany(ProductionMaterial::class); }
+    public function overheadAllocations(): HasMany { return $this->hasMany(OverheadAllocation::class); }
 
     public function recalculateTotalCost(): void
     {
-        $costSum = $this->costs()->sum('amount');
+        $costSum     = $this->costs()->sum('amount');
         $materialSum = $this->materials()->sum('total_cost');
-        $this->update(['total_cost' => $costSum + $materialSum]);
+        $overheadSum = $this->overheadAllocations()->sum('amount');
+        $this->update(['total_cost' => $costSum + $materialSum + $overheadSum]);
     }
 
     public static function generateBatchNumber(int $companyId): string

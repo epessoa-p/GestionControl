@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\OverheadAllocation;
+use App\Models\OverheadPeriod;
 use App\Models\Product;
 use App\Models\Production;
 use App\Models\Recipe;
@@ -35,14 +37,24 @@ class ProductionController extends Controller
     public function create()
     {
         $companyId = $this->getCompanyId();
+        $user      = auth()->user();
+        $company   = $user->getCurrentCompany();
+
+        $overheadPeriod = OverheadPeriod::where('company_id', $companyId)
+            ->where('status', 'abierto')
+            ->latest('period_start')
+            ->first();
+
         return view('productions.create', [
-            'production'  => null,
-            'products'     => Product::where('company_id', $companyId)->where('active', true)->where('category', 'PRODUCTO FINAL')->orderBy('name')->get(),
-            'rawMaterials' => Product::where('company_id', $companyId)->where('active', true)->where('category', 'MATERIA PRIMA')->orderBy('name')->get(),
-            'recipes'      => Recipe::where('company_id', $companyId)->where('status', 'activa')->orderBy('name')->get(),
-            'batchNumber'  => Production::generateBatchNumber($companyId),
-            'action'       => route('productions.store'),
-            'method'       => 'POST',
+            'production'         => null,
+            'products'           => Product::where('company_id', $companyId)->where('active', true)->where('category', 'PRODUCTO FINAL')->orderBy('name')->get(),
+            'rawMaterials'       => Product::where('company_id', $companyId)->where('active', true)->where('category', 'MATERIA PRIMA')->orderBy('name')->get(),
+            'recipes'            => Recipe::where('company_id', $companyId)->where('status', 'activa')->orderBy('name')->get(),
+            'batchNumber'        => Production::generateBatchNumber($companyId),
+            'action'             => route('productions.store'),
+            'method'             => 'POST',
+            'overheadPeriod'     => $overheadPeriod,
+            'distributionMethod' => $company?->overhead_distribution_method ?? 'manual',
         ]);
     }
 
@@ -50,50 +62,69 @@ class ProductionController extends Controller
     {
         try {
             $validated = $request->validate([
-                'product_id' => 'required|exists:products,id',
-                'quantity_produced' => 'required|numeric|min:0.01',
-                'production_date' => 'required|date',
-                'notes' => 'nullable|string',
-                'costs' => 'nullable|array',
-                'costs.*.concept' => 'required_with:costs|string|max:255',
-                'costs.*.type' => 'required_with:costs|in:direct,indirect',
-                'costs.*.amount' => 'required_with:costs|numeric|min:0',
-                'materials' => 'nullable|array',
-                'materials.*.product_id' => 'required_with:materials|exists:products,id',
-                'materials.*.quantity_used' => 'required_with:materials|numeric|min:0.01',
-                'materials.*.unit_cost' => 'required_with:materials|numeric|min:0',
+                'product_id'                => 'required|exists:products,id',
+                'quantity_produced'         => 'required|numeric|min:0.01',
+                'production_date'           => 'required|date',
+                'notes'                     => 'nullable|string',
+                'overhead_amount'           => 'nullable|numeric|min:0',
+                'overhead_period_id'        => 'nullable|integer',
+                'overhead_method'           => 'nullable|in:por_unidades,por_orden,tasa_fija,manual',
+                'costs'                     => 'nullable|array',
+                'costs.*.concept'           => 'nullable|string|max:255',
+                'costs.*.type'              => 'nullable|in:direct,indirect',
+                'costs.*.amount'            => 'nullable|numeric|min:0',
+                'materials'                 => 'nullable|array',
+                'materials.*.product_id'    => 'nullable|exists:products,id',
+                'materials.*.quantity_used' => 'nullable|numeric|min:0.0001',
+                'materials.*.unit_cost'     => 'nullable|numeric|min:0',
             ]);
 
             $companyId = $this->getCompanyId();
 
-            DB::transaction(function () use ($validated, $companyId) {
+            // Filtrar filas vacías: ignorar filas donde el campo clave es null/vacío
+            $costs = collect($validated['costs'] ?? [])
+                ->filter(fn($c) => !empty($c['concept']))
+                ->values()->all();
+
+            $materials = collect($validated['materials'] ?? [])
+                ->filter(fn($m) => !empty($m['product_id']))
+                ->values()->all();
+
+            DB::transaction(function () use ($validated, $companyId, $materials, $costs) {
                 $production = Production::create([
-                    'company_id' => $companyId,
-                    'product_id' => $validated['product_id'],
-                    'batch_number' => Production::generateBatchNumber($companyId),
+                    'company_id'        => $companyId,
+                    'product_id'        => $validated['product_id'],
+                    'batch_number'      => Production::generateBatchNumber($companyId),
                     'quantity_produced' => $validated['quantity_produced'],
-                    'production_date' => $validated['production_date'],
-                    'status' => 'planned',
-                    'notes' => $validated['notes'] ?? null,
-                    'created_by' => auth()->id(),
+                    'production_date'   => $validated['production_date'],
+                    'status'            => 'planned',
+                    'notes'             => $validated['notes'] ?? null,
+                    'created_by'        => auth()->id(),
                 ]);
 
-                if (!empty($validated['costs'])) {
-                    foreach ($validated['costs'] as $cost) {
-                        ProductionCost::create(['production_id' => $production->id, ...$cost]);
-                    }
+                foreach ($costs as $cost) {
+                    ProductionCost::create(['production_id' => $production->id, ...$cost]);
                 }
 
-                if (!empty($validated['materials'])) {
-                    foreach ($validated['materials'] as $material) {
-                        ProductionMaterial::create([
-                            'production_id' => $production->id,
-                            'product_id' => $material['product_id'],
-                            'quantity_used' => $material['quantity_used'],
-                            'unit_cost' => $material['unit_cost'],
-                            'total_cost' => $material['quantity_used'] * $material['unit_cost'],
-                        ]);
-                    }
+                foreach ($materials as $material) {
+                    ProductionMaterial::create([
+                        'production_id' => $production->id,
+                        'product_id'    => $material['product_id'],
+                        'quantity_used' => $material['quantity_used'],
+                        'unit_cost'     => $material['unit_cost'],
+                        'total_cost'    => $material['quantity_used'] * $material['unit_cost'],
+                    ]);
+                }
+
+                // Registrar asignación de overhead si se indicó un monto > 0
+                $overheadAmount = (float) ($validated['overhead_amount'] ?? 0);
+                if ($overheadAmount > 0) {
+                    OverheadAllocation::create([
+                        'production_id'      => $production->id,
+                        'overhead_period_id' => $validated['overhead_period_id'] ?: null,
+                        'amount'             => $overheadAmount,
+                        'method'             => $validated['overhead_method'] ?? 'manual',
+                    ]);
                 }
 
                 $production->recalculateTotalCost();
@@ -103,8 +134,14 @@ class ProductionController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            Log::error('Error al crear producción', ['message' => $e->getMessage()]);
-            return back()->withInput()->with('error', 'No fue posible registrar la producción.');
+            Log::error('Error al crear producción', [
+                'user_id'   => auth()->id(),
+                'input'     => $request->except(['_token']),
+                'message'   => $e->getMessage(),
+                'file'      => $e->getFile() . ':' . $e->getLine(),
+                'trace'     => $e->getTraceAsString(),
+            ]);
+            return back()->withInput()->with('error', 'No fue posible registrar la producción: ' . $e->getMessage());
         }
     }
 
@@ -139,7 +176,13 @@ class ProductionController extends Controller
 
             return back()->with('success', 'Estado de producción actualizado.');
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar estado producción', ['id' => $production->id, 'message' => $e->getMessage()]);
+            Log::error('Error al actualizar estado producción', [
+                'user_id'     => auth()->id(),
+                'production_id' => $production->id,
+                'new_status'  => $validated['status'] ?? null,
+                'message'     => $e->getMessage(),
+                'file'        => $e->getFile() . ':' . $e->getLine(),
+            ]);
             return back()->with('error', $e->getMessage());
         }
     }
@@ -153,10 +196,16 @@ class ProductionController extends Controller
         try {
             $production->costs()->delete();
             $production->materials()->delete();
+            $production->overheadAllocations()->delete();
             $production->delete();
             return redirect()->route('productions.index')->with('success', 'Producción eliminada exitosamente.');
         } catch (\Throwable $e) {
-            Log::error('Error al eliminar producción', ['id' => $production->id, 'message' => $e->getMessage()]);
+            Log::error('Error al eliminar producción', [
+                'user_id'       => auth()->id(),
+                'production_id' => $production->id,
+                'message'       => $e->getMessage(),
+                'file'          => $e->getFile() . ':' . $e->getLine(),
+            ]);
             return back()->with('error', 'No fue posible eliminar la producción.');
         }
     }

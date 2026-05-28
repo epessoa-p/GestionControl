@@ -14,18 +14,20 @@ class CashSession extends Model
 
     protected $fillable = [
         'cash_register_id', 'personal_id', 'opening_amount', 'closing_amount',
-        'expected_amount', 'difference', 'status', 'opened_at', 'closed_at',
-        'notes', 'opened_by', 'closed_by',
+        'closing_breakdown', 'expected_amount', 'difference', 'status',
+        'opened_at', 'closed_at', 'notes', 'opening_notes', 'closing_notes',
+        'opened_by', 'closed_by',
     ];
 
     protected $casts = [
-        'opening_amount' => 'decimal:2',
-        'closing_amount' => 'decimal:2',
-        'expected_amount' => 'decimal:2',
-        'difference' => 'decimal:2',
-        'opened_at' => 'datetime',
-        'closed_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'opening_amount'   => 'decimal:2',
+        'closing_amount'   => 'decimal:2',
+        'closing_breakdown' => 'array',
+        'expected_amount'  => 'decimal:2',
+        'difference'       => 'decimal:2',
+        'opened_at'        => 'datetime',
+        'closed_at'        => 'datetime',
+        'deleted_at'       => 'datetime',
     ];
 
     public function cashRegister(): BelongsTo { return $this->belongsTo(CashRegister::class); }

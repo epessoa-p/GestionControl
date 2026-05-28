@@ -12,12 +12,13 @@ class CashRegister extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['company_id', 'branch_id', 'name', 'code', 'active', 'created_by'];
+    protected $fillable = ['company_id', 'branch_id', 'assigned_personal_id', 'name', 'code', 'active', 'created_by'];
 
     protected $casts = ['active' => 'boolean', 'deleted_at' => 'datetime'];
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
     public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
+    public function assignedPersonal(): BelongsTo { return $this->belongsTo(Personal::class, 'assigned_personal_id'); }
     public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function sessions(): HasMany { return $this->hasMany(CashSession::class); }
 

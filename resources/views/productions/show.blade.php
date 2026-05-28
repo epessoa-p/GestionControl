@@ -9,21 +9,35 @@
             <p class="text-muted mb-0">Orden de producción — {{ $production->production_date?->format('d/m/Y') }}</p>
         </div>
         <div class="d-flex gap-2">
-            @if($production->status !== 'completed' && $production->status !== 'cancelled')
+            @if($production->status === 'planned')
                 <form action="{{ route('productions.update-status', $production) }}" method="POST" class="d-inline">
                     @csrf
-                    @if($production->status === 'planned')
-                        <input type="hidden" name="status" value="in_progress">
-                        <button class="btn btn-info text-white" onclick="return confirm('¿Iniciar producción?')"><i class="bi bi-play-fill me-1"></i> Iniciar</button>
-                    @elseif($production->status === 'in_progress')
-                        <input type="hidden" name="status" value="completed">
-                        <button class="btn btn-success" onclick="return confirm('¿Completar producción? Se consumirán materias primas y se agregará producto al inventario.')"><i class="bi bi-check-lg me-1"></i> Completar</button>
-                    @endif
+                    <input type="hidden" name="status" value="in_progress">
+                    <button class="btn btn-info text-white" onclick="return confirm('¿Iniciar producción?')"><i class="bi bi-play-fill me-1"></i> Iniciar</button>
                 </form>
                 <form action="{{ route('productions.update-status', $production) }}" method="POST" class="d-inline">
                     @csrf
                     <input type="hidden" name="status" value="cancelled">
-                    <button class="btn btn-outline-danger" onclick="return confirm('¿Cancelar producción?')"><i class="bi bi-x-lg"></i></button>
+                    <button class="btn btn-outline-warning" onclick="return confirm('¿Cancelar producción?')"><i class="bi bi-slash-circle me-1"></i> Cancelar</button>
+                </form>
+                <form action="{{ route('productions.destroy', $production) }}" method="POST" class="d-inline">
+                    @csrf @method('DELETE')
+                    <button class="btn btn-outline-danger" onclick="return confirm('¿Eliminar producción?')"><i class="bi bi-trash me-1"></i> Eliminar</button>
+                </form>
+            @elseif($production->status === 'in_progress')
+                <form action="{{ route('productions.update-status', $production) }}" method="POST" class="d-inline">
+                    @csrf
+                    <input type="hidden" name="status" value="completed">
+                    <button class="btn btn-success" onclick="return confirm('¿Completar producción? Se consumirán materias primas y se agregará producto al inventario.')"><i class="bi bi-check-lg me-1"></i> Completar</button>
+                </form>
+                <form action="{{ route('productions.update-status', $production) }}" method="POST" class="d-inline">
+                    @csrf
+                    <input type="hidden" name="status" value="cancelled">
+                    <button class="btn btn-outline-warning" onclick="return confirm('¿Cancelar producción?')"><i class="bi bi-slash-circle me-1"></i> Cancelar</button>
+                </form>
+                <form action="{{ route('productions.destroy', $production) }}" method="POST" class="d-inline">
+                    @csrf @method('DELETE')
+                    <button class="btn btn-outline-danger" onclick="return confirm('¿Eliminar producción?')"><i class="bi bi-trash me-1"></i> Eliminar</button>
                 </form>
             @endif
             <a href="{{ route('productions.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Volver</a>

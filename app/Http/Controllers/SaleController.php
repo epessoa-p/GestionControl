@@ -59,6 +59,8 @@ class SaleController extends Controller
         try {
             $validated = $request->validate([
                 'sale_date' => 'required|date',
+                'client_mode' => 'nullable|in:registered,quick',
+                'client_id' => 'nullable|exists:clients,id',
                 'client_name' => 'nullable|string|max:255',
                 'client_phone' => 'nullable|string|max:50',
                 'client_document' => 'nullable|string|max:50',
@@ -94,13 +96,27 @@ class SaleController extends Controller
                 $discount = $validated['discount'] ?? 0;
                 $total = $subtotal + $tax - $discount;
 
+                // Si hay client_id, auto-rellenar campos de texto desde el cliente
+                $clientName     = $validated['client_name'] ?? null;
+                $clientPhone    = $validated['client_phone'] ?? null;
+                $clientDocument = $validated['client_document'] ?? null;
+                $clientId       = $validated['client_id'] ?? null;
+
+                if ($clientId && !$clientName) {
+                    $crmClient  = \App\Models\Client::find($clientId);
+                    $clientName = $crmClient?->display_name;
+                    $clientPhone    = $clientPhone ?: $crmClient?->phone;
+                    $clientDocument = $clientDocument ?: $crmClient?->document_number;
+                }
+
                 $sale = Sale::create([
                     'company_id' => $companyId,
+                    'client_id' => $clientId,
                     'sale_number' => Sale::generateNumber($companyId),
                     'sale_date' => $validated['sale_date'],
-                    'client_name' => $validated['client_name'] ?? null,
-                    'client_phone' => $validated['client_phone'] ?? null,
-                    'client_document' => $validated['client_document'] ?? null,
+                    'client_name' => $clientName,
+                    'client_phone' => $clientPhone,
+                    'client_document' => $clientDocument,
                     'promoter_id' => $validated['promoter_id'] ?? null,
                     'branch_id' => $validated['branch_id'] ?? null,
                     'warehouse_id' => $validated['warehouse_id'] ?? null,

@@ -53,9 +53,33 @@
                                 <td><span class="badge bg-{{ \App\Models\Production::STATUS_COLORS[$prod->status] ?? 'secondary' }}">{{ \App\Models\Production::STATUS_LABELS[$prod->status] ?? $prod->status }}</span></td>
                                 <td>{{ $prod->createdBy?->name }}</td>
                                 <td class="text-end">
+                                    <a href="{{ route('productions.show', $prod) }}" class="btn btn-sm btn-outline-primary me-1" title="Ver detalle"><i class="bi bi-eye"></i></a>
+                                    @if($prod->status === 'planned')
+                                        <form action="{{ route('productions.update-status', $prod) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <input type="hidden" name="status" value="in_progress">
+                                            <button class="btn btn-sm btn-outline-info me-1" title="Iniciar" onclick="return confirm('¿Iniciar producción?')"><i class="bi bi-play-fill"></i></button>
+                                        </form>
+                                        <form action="{{ route('productions.update-status', $prod) }}" method="POST" class="d-inline me-1">
+                                            @csrf
+                                            <input type="hidden" name="status" value="cancelled">
+                                            <button class="btn btn-sm btn-outline-warning" title="Cancelar" onclick="return confirm('¿Cancelar producción?')"><i class="bi bi-slash-circle"></i></button>
+                                        </form>
+                                    @elseif($prod->status === 'in_progress')
+                                        <form action="{{ route('productions.update-status', $prod) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <input type="hidden" name="status" value="completed">
+                                            <button class="btn btn-sm btn-outline-success me-1" title="Completar" onclick="return confirm('¿Completar producción? Se consumirán materias primas y se agregará al inventario.')"><i class="bi bi-check-lg"></i></button>
+                                        </form>
+                                        <form action="{{ route('productions.update-status', $prod) }}" method="POST" class="d-inline me-1">
+                                            @csrf
+                                            <input type="hidden" name="status" value="cancelled">
+                                            <button class="btn btn-sm btn-outline-warning" title="Cancelar" onclick="return confirm('¿Cancelar producción?')"><i class="bi bi-slash-circle"></i></button>
+                                        </form>
+                                    @endif
                                     @if($prod->status !== 'completed' && $prod->status !== 'cancelled')
                                         <form action="{{ route('productions.destroy', $prod) }}" method="POST" class="d-inline">@csrf @method('DELETE')
-                                            <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar?')"><i class="bi bi-trash"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" title="Eliminar" onclick="return confirm('¿Eliminar producción?')"><i class="bi bi-trash"></i></button>
                                         </form>
                                     @endif
                                 </td>

@@ -13,12 +13,14 @@ class Company extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'ruc', 'address', 'phone', 'email', 'logo', 'description', 'active'
+        'name', 'ruc', 'address', 'phone', 'email', 'logo', 'description', 'active',
+        'overhead_distribution_method', 'overhead_fixed_rate',
     ];
 
     protected $casts = [
-        'active' => 'boolean',
-        'deleted_at' => 'datetime',
+        'active'               => 'boolean',
+        'overhead_fixed_rate'  => 'decimal:4',
+        'deleted_at'           => 'datetime',
     ];
 
     /**

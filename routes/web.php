@@ -19,6 +19,8 @@ use App\Http\Controllers\CashRegisterController;
 use App\Http\Controllers\PettyCashController;
 use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\RecipeController;
+use App\Http\Controllers\MachineController;
+use App\Http\Controllers\OverheadPeriodController;
 use App\Http\Controllers\PromoterController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\WarehouseTransferController;
@@ -218,6 +220,30 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{recipe}', [RecipeController::class, 'destroy'])->name('destroy');
         Route::get('/{recipe}/items', [RecipeController::class, 'items'])->name('items');
         Route::get('/{recipe}', [RecipeController::class, 'show'])->name('show');
+    });
+
+    // ─── Maquinaria ───
+    Route::prefix('machinery')->name('machinery.')->group(function () {
+        Route::get('/', [MachineController::class, 'index'])->name('index');
+        Route::get('/create', [MachineController::class, 'create'])->name('create');
+        Route::post('/', [MachineController::class, 'store'])->name('store');
+        Route::get('/{machine}/edit', [MachineController::class, 'edit'])->name('edit');
+        Route::put('/{machine}', [MachineController::class, 'update'])->name('update');
+        Route::delete('/{machine}', [MachineController::class, 'destroy'])->name('destroy');
+        Route::get('/{machine}', [MachineController::class, 'show'])->name('show');
+    });
+
+    // ─── Períodos de Gastos Indirectos ───
+    Route::prefix('overhead-periods')->name('overhead-periods.')->group(function () {
+        Route::get('/', [OverheadPeriodController::class, 'index'])->name('index');
+        Route::get('/create', [OverheadPeriodController::class, 'create'])->name('create');
+        Route::post('/', [OverheadPeriodController::class, 'store'])->name('store');
+        Route::get('/{period}/edit', [OverheadPeriodController::class, 'edit'])->name('edit');
+        Route::put('/{period}', [OverheadPeriodController::class, 'update'])->name('update');
+        Route::delete('/{period}', [OverheadPeriodController::class, 'destroy'])->name('destroy');
+        Route::post('/{period}/close', [OverheadPeriodController::class, 'close'])->name('close');
+        Route::post('/{period}/auto-depreciation', [OverheadPeriodController::class, 'autoFillDepreciation'])->name('auto-depreciation');
+        Route::get('/{period}', [OverheadPeriodController::class, 'show'])->name('show');
     });
 
     // ─── Promotores ───

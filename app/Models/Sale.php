@@ -13,7 +13,7 @@ class Sale extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'branch_id', 'warehouse_id', 'promoter_id',
+        'company_id', 'client_id', 'branch_id', 'warehouse_id', 'promoter_id',
         'cash_session_id', 'sale_number', 'client_name', 'client_phone',
         'client_document', 'sale_date', 'subtotal', 'tax', 'discount',
         'total', 'payment_method', 'sale_type', 'credit_total_installments',
@@ -51,6 +51,7 @@ class Sale extends Model
     ];
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
+    public function client(): BelongsTo { return $this->belongsTo(\App\Models\Client::class); }
     public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
     public function warehouse(): BelongsTo { return $this->belongsTo(Warehouse::class); }
     public function promoter(): BelongsTo { return $this->belongsTo(Promoter::class); }

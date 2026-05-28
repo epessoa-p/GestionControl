@@ -33,6 +33,15 @@
             </li>
         </ul>
 
+        <div class="sidebar-section-title mt-4">CRM</div>
+        <ul class="nav flex-column gap-1">
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('crm.clients.*') ? 'active' : '' }}" href="{{ route('crm.clients.index') }}">
+                    <i class="bi bi-people"></i> Clientes
+                </a>
+            </li>
+        </ul>
+
         <div class="sidebar-section-title mt-4">Operaciones</div>
         <ul class="nav flex-column gap-1">
             <li class="nav-item">
@@ -68,6 +77,11 @@
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('recipes.*') ? 'active' : '' }}" href="{{ route('recipes.index') }}">
                     <i class="bi bi-journal-text"></i> Recetas
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('overhead-periods.*') ? 'active' : '' }}" href="{{ route('overhead-periods.index') }}">
+                    <i class="bi bi-calendar2-week"></i> Gastos período
                 </a>
             </li>
         </ul>
@@ -147,6 +161,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('machinery.*') ? 'active' : '' }}" href="{{ route('machinery.index') }}">
+                    <i class="bi bi-tools"></i> Maquinaria
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}">
                     <i class="bi bi-briefcase"></i> Cargos
                 </a>
@@ -199,7 +218,98 @@
                     @endif
                 </div>
 
+                @php
+                    $navCashRegister = null;
+                    $navCashSession  = null;
+                    if (!auth()->user()->is_super_admin && $currentCompany) {
+                        $navPersonal = \App\Models\Personal::where('user_id', auth()->id())
+                            ->where('company_id', $currentCompany->id)
+                            ->first();
+                        if ($navPersonal) {
+                            $navCashRegister = \App\Models\CashRegister::where('assigned_personal_id', $navPersonal->id)
+                                ->where('company_id', $currentCompany->id)
+                                ->where('active', true)
+                                ->first();
+                            if ($navCashRegister) {
+                                $navCashSession = $navCashRegister->activeSession();
+                                $navCashSession?->load('cashRegister.branch');
+                            }
+                        }
+                    }
+                @endphp
+
                 <div class="d-flex align-items-center gap-2">
+
+                    {{-- Botón de caja --}}
+                    @if($navCashRegister)
+                        @if($navCashSession)
+                            @php
+                                $navOpenMinutes = $navCashSession->opened_at?->diffInMinutes(now());
+                                $navDuration = $navOpenMinutes >= 60
+                                    ? floor($navOpenMinutes / 60) . 'h ' . ($navOpenMinutes % 60) . 'm'
+                                    : $navOpenMinutes . 'm';
+                            @endphp
+                            <div class="dropdown">
+                                <button class="btn btn-cash-open dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-cash-stack btn-cash-icon"></i>
+                                    <span class="btn-cash-dot btn-cash-dot--open btn-cash-pulse"></span>
+                                    <span class="btn-cash-text">
+                                        <span class="btn-cash-sublabel">Caja abierta</span>
+                                        <span class="btn-cash-name">{{ $navCashSession->cashRegister?->branch?->name ?? $navCashRegister->name }}</span>
+                                    </span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-0" style="min-width:240px;">
+                                    {{-- Info card --}}
+                                    <li>
+                                        <div class="cash-dd-info px-3 pt-3 pb-2">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <div class="cash-dd-dot-wrap">
+                                                    <span class="btn-cash-dot btn-cash-dot--open btn-cash-pulse"></span>
+                                                </div>
+                                                <span class="fw-semibold text-dark small">{{ $navCashRegister->name }}</span>
+                                            </div>
+                                            <div class="d-flex flex-column gap-1">
+                                                <div class="cash-dd-row">
+                                                    <i class="bi bi-clock text-muted"></i>
+                                                    <span>Abierta {{ $navCashSession->opened_at?->format('H:i') }} · <strong>{{ $navDuration }}</strong></span>
+                                                </div>
+                                                @if($navCashSession->personal)
+                                                <div class="cash-dd-row">
+                                                    <i class="bi bi-person text-muted"></i>
+                                                    <span>{{ $navCashSession->personal->full_name }}</span>
+                                                </div>
+                                                @endif
+                                                @if($navCashSession->cashRegister?->branch)
+                                                <div class="cash-dd-row">
+                                                    <i class="bi bi-geo-alt text-muted"></i>
+                                                    <span>{{ $navCashSession->cashRegister->branch->name }}</span>
+                                                </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <li><hr class="dropdown-divider my-0"></li>
+                                    <li>
+                                        <a class="dropdown-item cash-dd-action py-2 px-3" href="{{ route('cash-sessions.show', $navCashSession) }}">
+                                            <span class="cash-dd-action-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-list-ul"></i></span>
+                                            <span>Ver movimientos</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item cash-dd-action py-2 px-3 mb-1" href="{{ route('cash-sessions.show', $navCashSession) }}#cerrar">
+                                            <span class="cash-dd-action-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-lock"></i></span>
+                                            <span class="text-danger">Cerrar caja</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        @else
+                            <button type="button" class="btn btn-cash-closed" data-bs-toggle="modal" data-bs-target="#navOpenCashModal">
+                                <span class="btn-cash-dot btn-cash-dot--closed"></span> Abrir caja
+                            </button>
+                        @endif
+                    @endif
+
                     <div class="dropdown">
                         <button class="btn btn-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-person-circle"></i>
@@ -251,6 +361,92 @@
     </main>
 </div>
 
+{{-- ── Modal: Apertura de caja ──────────────────────────────────────────────── --}}
+@if(isset($navCashRegister) && $navCashRegister && !$navCashSession)
+<div class="modal fade" id="navOpenCashModal" tabindex="-1" aria-labelledby="navOpenCashModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+
+            {{-- Header con fondo oscuro --}}
+            <div class="modal-cash-header d-flex align-items-center gap-3 px-4 py-4">
+                <div class="modal-cash-icon">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-white">Apertura de caja</h5>
+                    <small class="text-white-50">{{ $navCashRegister->name }}
+                        @if($navCashRegister->branch) · {{ $navCashRegister->branch->name }} @endif
+                    </small>
+                </div>
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form action="{{ route('cash-registers.open-session', $navCashRegister) }}" method="POST">
+                @csrf
+                <div class="modal-body px-4 pt-4 pb-3">
+
+                    {{-- Personal asignado --}}
+                    @if($navCashRegister->assignedPersonal)
+                        <div class="modal-cash-personal d-flex align-items-center gap-3 mb-4">
+                            <div class="modal-cash-avatar">
+                                {{ strtoupper(substr($navCashRegister->assignedPersonal->full_name, 0, 1)) }}
+                            </div>
+                            <div>
+                                <div class="fw-semibold text-dark">{{ $navCashRegister->assignedPersonal->full_name }}</div>
+                                <small class="text-muted">Cajero asignado</small>
+                            </div>
+                            <span class="badge bg-success bg-opacity-10 text-success ms-auto">
+                                <i class="bi bi-person-check me-1"></i>Verificado
+                            </span>
+                        </div>
+                    @else
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Personal <span class="text-danger">*</span></label>
+                            <select name="personal_id" class="form-select" required>
+                                <option value="">Seleccionar personal...</option>
+                                @foreach(\App\Models\Personal::where('company_id', $currentCompany?->id)->where('active', true)->orderBy('full_name')->get() as $p)
+                                    <option value="{{ $p->id }}">{{ $p->full_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
+                    {{-- Monto de apertura --}}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-dark">Monto de apertura</label>
+                        <div class="modal-cash-amount-wrap">
+                            <span class="modal-cash-currency">$</span>
+                            <input type="number" name="opening_amount" id="navOpenAmount"
+                                   class="modal-cash-amount-input"
+                                   value="0" min="0" step="0.01"
+                                   placeholder="0.00" required
+                                   autocomplete="off">
+                        </div>
+                        <small class="text-muted">Dinero físico con el que inicia el turno.</small>
+                    </div>
+
+                    {{-- Notas opcionales --}}
+                    <div class="mb-1">
+                        <label class="form-label fw-semibold text-dark d-flex align-items-center gap-2">
+                            Notas <span class="badge bg-light text-muted fw-normal">Opcional</span>
+                        </label>
+                        <textarea name="opening_notes" class="form-control border-0 bg-light" rows="2"
+                                  placeholder="Observaciones del turno..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex gap-2">
+                    <button type="button" class="btn btn-light border flex-fill" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-cash-submit flex-fill">
+                        <i class="bi bi-unlock me-1"></i> Abrir caja
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="offcanvas offcanvas-start" tabindex="-1" id="appSidebarMobile" aria-labelledby="appSidebarMobileLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title" id="appSidebarMobileLabel">Menu</h5>
@@ -263,6 +459,10 @@
                 <li><a class="nav-link app-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">Overview</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('trackings.*') ? 'active' : '' }}" href="{{ route('trackings.index') }}">Seguimientos</a></li>
             </ul>
+            <div class="sidebar-section-title mt-3">CRM</div>
+            <ul class="nav flex-column gap-1">
+                <li><a class="nav-link app-link {{ request()->routeIs('crm.clients.*') ? 'active' : '' }}" href="{{ route('crm.clients.index') }}">Clientes</a></li>
+            </ul>
             <div class="sidebar-section-title mt-3">Operaciones</div>
             <ul class="nav flex-column gap-1">
                 <li><a class="nav-link app-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">Entradas</a></li>
@@ -272,6 +472,7 @@
                 <li><a class="nav-link app-link {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">Órdenes</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('productions.*') ? 'active' : '' }}" href="{{ route('productions.index') }}">Produccion</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('recipes.*') ? 'active' : '' }}" href="{{ route('recipes.index') }}">Recetas</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('overhead-periods.*') ? 'active' : '' }}" href="{{ route('overhead-periods.index') }}">Gastos período</a></li>
             </ul>
             <div class="sidebar-section-title mt-3">Finanzas</div>
             <ul class="nav flex-column gap-1">
@@ -297,6 +498,7 @@
                 <li><a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">Productos</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('measurement-units.*') ? 'active' : '' }}" href="{{ route('measurement-units.index') }}">Unidades de medida</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">Almacenes</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('machinery.*') ? 'active' : '' }}" href="{{ route('machinery.index') }}">Maquinaria</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}">Cargos</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('personal.*') ? 'active' : '' }}" href="{{ route('personal.index') }}">Personal</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">Plantillas</a></li>
@@ -438,6 +640,223 @@
         background: #363636;
         color: #fff;
     }
+
+    /* ── Botón de caja en topbar ─────────────────────────── */
+    .btn-cash-open,
+    .btn-cash-closed {
+        border-radius: 8px;
+        padding: 5px 11px;
+        font-size: 0.82rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        text-decoration: none;
+    }
+
+    .btn-cash-open {
+        background: #1a3a1a;
+        border: 1px solid #2d6a2d;
+        color: #6fcf6f;
+    }
+    .btn-cash-open:hover,
+    .btn-cash-open:focus {
+        background: #1f4a1f;
+        color: #88df88;
+    }
+    .btn-cash-open::after { border-color: #6fcf6f; }
+
+    .btn-cash-icon {
+        font-size: 0.95rem;
+        opacity: 0.9;
+    }
+
+    .btn-cash-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.15;
+        text-align: left;
+    }
+    .btn-cash-sublabel {
+        font-size: 0.65rem;
+        opacity: 0.7;
+        font-weight: 500;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+    .btn-cash-name {
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .btn-cash-closed {
+        background: #3a1a10;
+        border: 1px solid #7a3520;
+        color: #f4845f;
+    }
+    .btn-cash-closed:hover {
+        background: #4a2010;
+        color: #f9a07a;
+    }
+
+    .btn-cash-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .btn-cash-dot--open   { background: #4cbb4c; box-shadow: 0 0 5px #4cbb4c88; }
+    .btn-cash-dot--closed { background: #e06030; box-shadow: 0 0 5px #e0603088; }
+
+    @keyframes cashPulse {
+        0%   { box-shadow: 0 0 0 0 rgba(76,187,76,0.55); }
+        70%  { box-shadow: 0 0 0 5px rgba(76,187,76,0); }
+        100% { box-shadow: 0 0 0 0 rgba(76,187,76,0); }
+    }
+    .btn-cash-pulse { animation: cashPulse 2s infinite; }
+
+    /* ── Dropdown de caja abierta ────────────────────────── */
+    .cash-dd-info {
+        background: #f8fafc;
+        border-radius: 8px 8px 0 0;
+    }
+    .cash-dd-dot-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+    }
+    .cash-dd-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        color: #555;
+        padding: 1px 0;
+    }
+    .cash-dd-row i { font-size: 0.75rem; width: 14px; }
+    .cash-dd-action {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.85rem;
+    }
+    .cash-dd-action-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        display: grid;
+        place-items: center;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+
+    /* ── Modal apertura de caja ──────────────────────────── */
+    .modal-cash-header {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+        min-height: 88px;
+    }
+
+    .modal-cash-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.18);
+        display: grid;
+        place-items: center;
+        font-size: 1.35rem;
+        color: #fff;
+        flex-shrink: 0;
+    }
+
+    .modal-cash-personal {
+        background: #f8fafc;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 14px 16px;
+    }
+
+    .modal-cash-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: #fff;
+        font-weight: 700;
+        font-size: 1rem;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+    }
+
+    .modal-cash-amount-wrap {
+        display: flex;
+        align-items: center;
+        border: 2px solid #e0e7ef;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: border-color 0.2s;
+        background: #fff;
+        margin-bottom: 6px;
+    }
+    .modal-cash-amount-wrap:focus-within {
+        border-color: #0f3460;
+        box-shadow: 0 0 0 3px rgba(15,52,96,0.08);
+    }
+
+    .modal-cash-currency {
+        padding: 0 14px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #6c757d;
+        background: #f8fafc;
+        border-right: 2px solid #e0e7ef;
+        height: 52px;
+        display: grid;
+        place-items: center;
+    }
+
+    .modal-cash-amount-input {
+        border: 0;
+        outline: none;
+        padding: 0 16px;
+        font-size: 1.55rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        width: 100%;
+        height: 52px;
+        background: transparent;
+    }
+    .modal-cash-amount-input::-webkit-outer-spin-button,
+    .modal-cash-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .modal-cash-amount-input[type=number] { -moz-appearance: textfield; }
+
+    .btn-cash-submit {
+        background: linear-gradient(135deg, #1a1a2e, #0f3460);
+        color: #fff;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+    }
+    .btn-cash-submit:hover {
+        background: linear-gradient(135deg, #0f3460, #1a1a2e);
+        color: #fff;
+    }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var openModal = document.getElementById('navOpenCashModal');
+        if (openModal) {
+            openModal.addEventListener('shown.bs.modal', function () {
+                var amountInput = document.getElementById('navOpenAmount');
+                if (amountInput) { amountInput.focus(); amountInput.select(); }
+            });
+        }
+    });
+</script>
+<style>
 
     @media (max-width: 991.98px) {
         .app-sidebar {

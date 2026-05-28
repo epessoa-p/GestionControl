@@ -40,6 +40,18 @@
                         </div>
 
                         <div class="col-md-6">
+                            <label class="form-label fw-semibold">Personal asignado (cajero)</label>
+                            <select name="assigned_personal_id" class="form-select @error('assigned_personal_id') is-invalid @enderror">
+                                <option value="">Sin asignar</option>
+                                @foreach($personals as $p)
+                                    <option value="{{ $p->id }}" {{ (string)old('assigned_personal_id', $cashRegister?->assigned_personal_id) === (string)$p->id ? 'selected' : '' }}>{{ $p->full_name }}</option>
+                                @endforeach
+                            </select>
+                            @error('assigned_personal_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <small class="text-muted">Un personal solo puede tener una caja asignada por sucursal.</small>
+                        </div>
+
+                        <div class="col-md-6">
                             <label class="form-label fw-semibold d-block">&nbsp;</label>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="active" value="1" id="activeSwitch" {{ old('active', $cashRegister?->active ?? true) ? 'checked' : '' }}>
