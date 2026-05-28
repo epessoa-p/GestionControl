@@ -38,12 +38,27 @@
                 <textarea id="description" name="description" class="form-control @error('description') is-invalid @enderror" rows="3">{{ old('description') }}</textarea>
             </div>
 
-            <div class="form-group">
+            {{-- ── Configuración de costos indirectos ── --}}
+            <hr class="my-4">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style="width:36px;height:36px;flex-shrink:0;">
+                    <i class="bi bi-gear-wide text-primary"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0">Costos indirectos de producción</h5>
+                    <small class="text-muted">Define cómo se calcula y distribuye el overhead en cada orden de producción</small>
+                </div>
+            </div>
+            <hr class="mt-2 mb-3">
+
+            @include('admin.companies._overhead_config')
+
+            <div class="form-group mt-2">
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-circle"></i> Crear Empresa
+                    <i class="bi bi-check-circle me-1"></i> Crear Empresa
                 </button>
                 <a href="{{ route('companies.index') }}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left"></i> Cancelar
+                    <i class="bi bi-arrow-left me-1"></i> Cancelar
                 </a>
             </div>
         </form>

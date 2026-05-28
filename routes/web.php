@@ -204,8 +204,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [ProductionController::class, 'index'])->name('index');
         Route::get('/create', [ProductionController::class, 'create'])->name('create');
         Route::post('/', [ProductionController::class, 'store'])->name('store');
+        Route::get('/suggest-overhead', [ProductionController::class, 'suggestOverhead'])->name('suggest-overhead');
         Route::get('/{production}', [ProductionController::class, 'show'])->name('show');
         Route::post('/{production}/status', [ProductionController::class, 'updateStatus'])->name('update-status');
+        Route::post('/{production}/costs', [ProductionController::class, 'addCost'])->name('costs.store');
+        Route::delete('/{production}/costs/{cost}', [ProductionController::class, 'deleteCost'])->name('costs.destroy');
+        Route::post('/{production}/overhead', [ProductionController::class, 'addOverhead'])->name('overhead.store');
+        Route::delete('/{production}/overhead/{allocation}', [ProductionController::class, 'deleteOverhead'])->name('overhead.destroy');
         Route::delete('/{production}', [ProductionController::class, 'destroy'])->name('destroy');
     });
 

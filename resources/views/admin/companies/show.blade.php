@@ -20,19 +20,73 @@
     </div>
 
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Acciones</h5>
+        {{-- Costos indirectos --}}
+        @php
+            $methodLabels = [
+                'manual'       => ['label' => 'Manual',                    'icon' => 'bi-pencil-square',  'color' => 'secondary'],
+                'por_unidades' => ['label' => 'Por unidades producidas',   'icon' => 'bi-stack',          'color' => 'primary'],
+                'por_orden'    => ['label' => 'Por orden de producción',   'icon' => 'bi-receipt',        'color' => 'info'],
+                'tasa_fija'    => ['label' => 'Tasa fija por unidad',      'icon' => 'bi-calculator',     'color' => 'success'],
+            ];
+            $method = $company->overhead_distribution_method ?? 'manual';
+            $meta   = $methodLabels[$method] ?? $methodLabels['manual'];
+        @endphp
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center gap-2 py-3">
+                <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center"
+                     style="width:32px;height:32px;flex-shrink:0;">
+                    <i class="bi bi-gear-wide text-primary" style="font-size:.85rem;"></i>
+                </div>
+                <h6 class="fw-bold mb-0">Costos indirectos de producción</h6>
             </div>
             <div class="card-body">
-                <a href="{{ route('companies.edit', $company) }}" class="btn btn-warning w-100 mb-2">
-                    <i class="bi bi-pencil"></i> Editar
+                <div class="d-flex align-items-center gap-3 p-3 rounded-3 border mb-3"
+                     style="background:#f8f9fa;">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center text-{{ $meta['color'] }} flex-shrink-0"
+                         style="width:44px;height:44px;background:var(--bs-{{ $meta['color'] }}-bg,#e9ecef);">
+                        <i class="bi {{ $meta['icon'] }} fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="fw-semibold">{{ $meta['label'] }}</div>
+                        <small class="text-muted">Método de distribución configurado</small>
+                    </div>
+                    <span class="ms-auto badge bg-{{ $meta['color'] }} bg-opacity-15 text-{{ $meta['color'] }}">
+                        Activo
+                    </span>
+                </div>
+
+                @if($method === 'tasa_fija')
+                    <div class="d-flex align-items-center justify-content-between px-1">
+                        <span class="text-muted small"><i class="bi bi-calculator me-1"></i>Tasa fija por unidad</span>
+                        <span class="fw-bold text-success fs-5">
+                            ${{ number_format($company->overhead_fixed_rate ?? 0, 4) }}
+                            <small class="text-muted fw-normal fs-6">/unidad</small>
+                        </span>
+                    </div>
+                @elseif($method === 'manual')
+                    <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>El monto se ingresa manualmente en cada orden de producción.</p>
+                @elseif($method === 'por_unidades')
+                    <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>El overhead del período se distribuye proporcional a las unidades producidas por cada orden.</p>
+                @elseif($method === 'por_orden')
+                    <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>El overhead del período se divide en partes iguales entre todas las órdenes activas.</p>
+                @endif
+            </div>
+        </div>
+
+        {{-- Acciones --}}
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom py-3">
+                <h6 class="fw-bold mb-0">Acciones</h6>
+            </div>
+            <div class="card-body d-flex flex-column gap-2">
+                <a href="{{ route('companies.edit', $company) }}" class="btn btn-warning">
+                    <i class="bi bi-pencil me-1"></i> Editar empresa
                 </a>
                 <form action="{{ route('companies.destroy', $company) }}" method="POST">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger w-100" onclick="return confirm('¿Estás seguro?')">
-                        <i class="bi bi-trash"></i> Eliminar
+                    @csrf @method('DELETE')
+                    <button type="submit" class="btn btn-outline-danger w-100"
+                            onclick="return confirm('¿Eliminar empresa {{ addslashes($company->name) }}?')">
+                        <i class="bi bi-trash me-1"></i> Eliminar
                     </button>
                 </form>
             </div>

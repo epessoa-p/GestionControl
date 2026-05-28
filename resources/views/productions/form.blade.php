@@ -439,27 +439,41 @@
     overheadInput?.addEventListener('input', calcTotals);
 
     // ── Overhead: botón calcular sugerido ─────────────────────────
-    document.getElementById('calcOverhead')?.addEventListener('click', function () {
-        const input   = document.getElementById('overheadAmount');
+    document.getElementById('calcOverhead')?.addEventListener('click', async function () {
+        const input    = document.getElementById('overheadAmount');
         if (!input) return;
-        const method  = input.dataset.method;
-        const pending = parseFloat(input.dataset.pending) || 0;
-        const total   = parseFloat(input.dataset.total)   || 0;
-        const rate    = parseFloat(input.dataset.fixedRate) || 0;
-        const qty     = parseFloat(quantityInput?.value)   || 0;
+        const method   = input.dataset.method;
+        const pending  = parseFloat(input.dataset.pending)   || 0;
+        const rate     = parseFloat(input.dataset.fixedRate) || 0;
+        const qty      = parseFloat(quantityInput?.value)    || 0;
+        const periodId = input.dataset.periodId;
 
-        let suggested = 0;
         if (method === 'tasa_fija') {
-            suggested = rate * qty;
-        } else if (method === 'por_unidades' || method === 'por_orden') {
-            // Usar el servidor para calcular el valor exacto (requiere datos de otras producciones)
-            // Como fallback usamos el pendiente total
-            suggested = pending;
-        } else {
-            suggested = pending;
+            input.value = (rate * qty).toFixed(2);
+            calcTotals();
+            return;
         }
 
-        input.value = suggested.toFixed(2);
+        if (method === 'por_unidades' || method === 'por_orden') {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            try {
+                const res = await fetch(`/productions/suggest-overhead?period_id=${periodId}&production_qty=${qty}`);
+                const data = await res.json();
+                input.value = (data.suggested ?? 0).toFixed(2);
+                calcTotals();
+            } catch (e) {
+                console.error('Error al calcular overhead sugerido:', e);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-magic"></i>';
+            }
+            return;
+        }
+
+        // manual: sugerir el monto pendiente del período
+        input.value = pending.toFixed(2);
         calcTotals();
     });
 

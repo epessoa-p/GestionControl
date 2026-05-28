@@ -148,8 +148,102 @@ class ProductionController extends Controller
     public function show(Production $production)
     {
         $this->authorizeRecord($production);
-        $production->load(['product', 'createdBy', 'costs', 'materials.product', 'company']);
-        return view('productions.show', compact('production'));
+        $production->load(['product', 'createdBy', 'costs', 'materials.product', 'company', 'overheadAllocations.period']);
+
+        $openPeriod = OverheadPeriod::with('company')
+            ->where('company_id', $production->company_id)
+            ->where('status', 'abierto')
+            ->latest('period_start')
+            ->first();
+
+        $distributionMethod = $production->company?->overhead_distribution_method ?? 'manual';
+
+        return view('productions.show', compact('production', 'openPeriod', 'distributionMethod'));
+    }
+
+    public function suggestOverhead(Request $request)
+    {
+        $periodId = $request->integer('period_id');
+        $qty      = (float) $request->input('production_qty', 0);
+
+        $period = OverheadPeriod::with('company')->find($periodId);
+        if (!$period) {
+            return response()->json(['suggested' => 0, 'pending' => 0]);
+        }
+
+        $user = auth()->user();
+        if (!$user->is_super_admin && $period->company_id !== $user->getCurrentCompany()?->id) {
+            abort(403);
+        }
+
+        $method = $period->company?->overhead_distribution_method ?? 'manual';
+
+        $tempProduction = new Production([
+            'company_id'        => $period->company_id,
+            'quantity_produced' => $qty,
+            'production_date'   => now()->toDateString(),
+            'status'            => 'in_progress',
+        ]);
+
+        return response()->json([
+            'suggested' => $period->suggestedAllocation($tempProduction, $method),
+            'pending'   => $period->pendingAmount(),
+            'method'    => $method,
+        ]);
+    }
+
+    public function addOverhead(Request $request, Production $production)
+    {
+        $this->authorizeRecord($production);
+
+        $validated = $request->validate([
+            'overhead_period_id' => 'nullable|exists:overhead_periods,id',
+            'amount'             => 'required|numeric|min:0.01',
+            'method'             => 'nullable|in:por_unidades,por_orden,tasa_fija,manual',
+            'notes'              => 'nullable|string|max:500',
+        ]);
+
+        try {
+            OverheadAllocation::create([
+                'production_id'      => $production->id,
+                'overhead_period_id' => $validated['overhead_period_id'] ?: null,
+                'amount'             => $validated['amount'],
+                'method'             => $validated['method'] ?? 'manual',
+                'notes'              => $validated['notes'] ?? null,
+            ]);
+
+            $production->recalculateTotalCost();
+
+            return back()->with('success', 'Overhead aplicado exitosamente.');
+        } catch (\Throwable $e) {
+            Log::error('Error al agregar overhead a producción', [
+                'production_id' => $production->id,
+                'message'       => $e->getMessage(),
+            ]);
+            return back()->with('error', 'No fue posible agregar el overhead.');
+        }
+    }
+
+    public function deleteOverhead(Production $production, OverheadAllocation $allocation)
+    {
+        $this->authorizeRecord($production);
+
+        if ($allocation->production_id !== $production->id) {
+            abort(404);
+        }
+
+        try {
+            $allocation->delete();
+            $production->recalculateTotalCost();
+            return back()->with('success', 'Overhead eliminado.');
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar overhead de producción', [
+                'production_id'  => $production->id,
+                'allocation_id'  => $allocation->id,
+                'message'        => $e->getMessage(),
+            ]);
+            return back()->with('error', 'No fue posible eliminar el overhead.');
+        }
     }
 
     public function updateStatus(Request $request, Production $production)
@@ -184,6 +278,58 @@ class ProductionController extends Controller
                 'file'        => $e->getFile() . ':' . $e->getLine(),
             ]);
             return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function addCost(Request $request, Production $production)
+    {
+        $this->authorizeRecord($production);
+
+        $validated = $request->validate([
+            'concept' => 'required|string|max:255',
+            'type'    => 'required|in:direct,indirect',
+            'amount'  => 'required|numeric|min:0.01',
+        ]);
+
+        try {
+            ProductionCost::create([
+                'production_id' => $production->id,
+                'concept'       => $validated['concept'],
+                'type'          => $validated['type'],
+                'amount'        => $validated['amount'],
+            ]);
+
+            $production->recalculateTotalCost();
+
+            return back()->with('success', 'Gasto agregado exitosamente.');
+        } catch (\Throwable $e) {
+            Log::error('Error al agregar gasto a producción', [
+                'production_id' => $production->id,
+                'message'       => $e->getMessage(),
+            ]);
+            return back()->with('error', 'No fue posible agregar el gasto.');
+        }
+    }
+
+    public function deleteCost(Production $production, ProductionCost $cost)
+    {
+        $this->authorizeRecord($production);
+
+        if ($cost->production_id !== $production->id) {
+            abort(404);
+        }
+
+        try {
+            $cost->delete();
+            $production->recalculateTotalCost();
+            return back()->with('success', 'Gasto eliminado.');
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar gasto de producción', [
+                'production_id' => $production->id,
+                'cost_id'       => $cost->id,
+                'message'       => $e->getMessage(),
+            ]);
+            return back()->with('error', 'No fue posible eliminar el gasto.');
         }
     }
 
