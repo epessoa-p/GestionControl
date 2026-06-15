@@ -10,6 +10,7 @@ use App\Models\Sale;
 use App\Models\SaleDetail;
 use App\Models\SaleInstallment;
 use App\Models\Warehouse;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -212,6 +213,9 @@ class SaleController extends Controller
                         throw new \Exception("Stock insuficiente para {$product->name}.");
                     }
                     Product::where('id', $detail->product_id)->decrement('current_stock', $detail->quantity);
+                    if ($sale->warehouse_id) {
+                        StockService::adjust($sale->company_id, $sale->warehouse_id, $detail->product_id, -(float) $detail->quantity);
+                    }
                 }
                 $sale->update(['status' => 'completed']);
             });
@@ -234,6 +238,9 @@ class SaleController extends Controller
                 if ($sale->status === 'completed') {
                     foreach ($sale->details as $detail) {
                         Product::where('id', $detail->product_id)->increment('current_stock', $detail->quantity);
+                        if ($sale->warehouse_id) {
+                            StockService::adjust($sale->company_id, $sale->warehouse_id, $detail->product_id, (float) $detail->quantity);
+                        }
                     }
                 }
                 $sale->update(['status' => 'cancelled']);

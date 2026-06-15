@@ -47,6 +47,15 @@
                         <div class="form-text">Opcional · rellena los materiales automáticamente.</div>
                     </div>
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold">Almacén</label>
+                        <select name="warehouse_id" class="form-select @error('warehouse_id') is-invalid @enderror">
+                            <option value="">Sin almacén</option>
+                            @foreach($warehouses ?? [] as $wh)
+                                <option value="{{ $wh->id }}" {{ old('warehouse_id', $production?->warehouse_id) == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label fw-semibold">Cantidad a producir <span class="text-danger">*</span></label>
                         <input type="number" step="0.01" min="0.01" id="quantityInput" name="quantity_produced" class="form-control @error('quantity_produced') is-invalid @enderror" value="{{ old('quantity_produced') }}" placeholder="0.00" required>
                     </div>

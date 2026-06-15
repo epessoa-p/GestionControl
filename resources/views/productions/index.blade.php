@@ -34,6 +34,7 @@
                         <tr>
                             <th>Lote</th>
                             <th>Producto</th>
+                            <th>Almacén</th>
                             <th>Fecha</th>
                             <th class="text-end">Cantidad</th>
                             <th class="text-end">Costo total</th>
@@ -47,6 +48,13 @@
                             <tr>
                                 <td><a href="{{ route('productions.show', $prod) }}" class="text-decoration-none fw-semibold">{{ $prod->batch_number }}</a></td>
                                 <td>{{ $prod->product?->name }}</td>
+                                <td>
+                                    @if($prod->warehouse)
+                                        <span class="badge bg-light text-secondary border"><i class="bi bi-building me-1"></i>{{ $prod->warehouse->name }}</span>
+                                    @else
+                                        <span class="text-muted small">—</span>
+                                    @endif
+                                </td>
                                 <td>{{ $prod->production_date?->format('d/m/Y') }}</td>
                                 <td class="text-end">{{ number_format($prod->quantity_produced, 2) }}</td>
                                 <td class="text-end">${{ number_format($prod->total_cost, 2) }}</td>
@@ -85,7 +93,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="8" class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>No hay producciones registradas</td></tr>
+                            <tr><td colspan="9" class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>No hay producciones registradas</td></tr>
                         @endforelse
                     </tbody>
                 </table>

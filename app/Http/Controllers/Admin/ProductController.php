@@ -7,7 +7,9 @@ use App\Models\Company;
 use App\Models\MeasurementUnit;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\Warehouse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -16,9 +18,10 @@ class ProductController extends Controller
 {
     public function index()
     {
-        $user      = auth()->user();
-        $activeTab = request('tab', 'PRODUCTO FINAL');
-        $companyId = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
+        $user        = auth()->user();
+        $activeTab   = request('tab', 'PRODUCTO FINAL');
+        $warehouseId = request('warehouse_id');
+        $companyId   = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
 
         $base = fn() => Product::query()
             ->when($companyId, fn($q) => $q->where('company_id', $companyId));
@@ -35,7 +38,28 @@ class ProductController extends Controller
             'MATERIA PRIMA'  => $base()->where('category', 'MATERIA PRIMA')->count(),
         ];
 
-        return view('admin.products.index', compact('products', 'activeTab', 'counts'));
+        $warehouses = Warehouse::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->where('active', true)->orderBy('name')->get();
+
+        $warehouseStocks = collect();
+
+        if ($warehouseId) {
+            $productIds = $products->pluck('id');
+
+            $rows = DB::table('warehouse_product_stocks')
+                ->where('warehouse_id', $warehouseId)
+                ->whereIn('product_id', $productIds)
+                ->pluck('quantity', 'product_id');
+
+            $warehouseStocks = $productIds->mapWithKeys(fn($id) => [
+                $id => max(0, (float) ($rows[$id] ?? 0)),
+            ]);
+        }
+
+        return view('admin.products.index', compact(
+            'products', 'activeTab', 'counts',
+            'warehouses', 'warehouseId', 'warehouseStocks'
+        ));
     }
 
     public function create()

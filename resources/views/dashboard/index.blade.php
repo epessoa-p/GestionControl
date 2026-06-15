@@ -41,11 +41,11 @@
             <div class="kpi-card">
                 <div class="kpi-body">
                     <div>
-                        <div class="kpi-value">${{ number_format($pendingCommissions, 2) }}</div>
-                        <div class="kpi-label">Comisiones pendientes</div>
-                        <div class="kpi-trend text-danger"><i class="bi bi-percent"></i> Por pagar</div>
+                        <div class="kpi-value">${{ number_format($pendingPayables, 2) }}</div>
+                        <div class="kpi-label">Cuentas por pagar</div>
+                        <div class="kpi-trend text-danger"><i class="bi bi-credit-card-2-front"></i> Saldo pendiente</div>
                     </div>
-                    <div class="kpi-icon" style="background: #dc3545;"><i class="bi bi-cash-coin"></i></div>
+                    <div class="kpi-icon" style="background: #dc3545;"><i class="bi bi-credit-card-2-front"></i></div>
                 </div>
             </div>
         </div>
@@ -69,11 +69,11 @@
             <div class="kpi-card">
                 <div class="kpi-body">
                     <div>
-                        <div class="kpi-value">{{ $openTrackings }}</div>
-                        <div class="kpi-label">Seguimientos abiertos</div>
-                        <div class="kpi-trend text-info"><i class="bi bi-journal-text"></i> Activos</div>
+                        <div class="kpi-value">${{ number_format($pendingReceivables, 2) }}</div>
+                        <div class="kpi-label">Cuentas por cobrar</div>
+                        <div class="kpi-trend text-info"><i class="bi bi-cash"></i> Cuotas pendientes</div>
                     </div>
-                    <div class="kpi-icon" style="background: #0dcaf0;"><i class="bi bi-journal-check"></i></div>
+                    <div class="kpi-icon" style="background: #0dcaf0;"><i class="bi bi-cash"></i></div>
                 </div>
             </div>
         </div>

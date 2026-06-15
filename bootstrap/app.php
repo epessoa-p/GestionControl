@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             \Illuminate\Support\Facades\Route::middleware('web')
                 ->group(base_path('routes/crm.php'));
+            \Illuminate\Support\Facades\Route::middleware('web')
+                ->group(base_path('routes/purchases.php'));
+            \Illuminate\Support\Facades\Route::middleware('web')
+                ->group(base_path('routes/sales.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

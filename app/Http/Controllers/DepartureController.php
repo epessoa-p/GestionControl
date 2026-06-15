@@ -6,6 +6,7 @@ use App\Models\Departure;
 use App\Models\DepartureDetail;
 use App\Models\Product;
 use App\Models\Warehouse;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -127,6 +128,7 @@ class DepartureController extends Controller
                 foreach ($departure->details as $detail) {
                     Product::where('id', $detail->product_id)
                         ->decrement('current_stock', $detail->quantity);
+                    StockService::adjust($departure->company_id, $departure->warehouse_id, $detail->product_id, -(float) $detail->quantity);
                 }
             });
             return back()->with('success', 'Salida confirmada e inventario actualizado.');
@@ -149,6 +151,7 @@ class DepartureController extends Controller
                     foreach ($departure->details as $detail) {
                         Product::where('id', $detail->product_id)
                             ->increment('current_stock', $detail->quantity);
+                        StockService::adjust($departure->company_id, $departure->warehouse_id, $detail->product_id, (float) $detail->quantity);
                     }
                 }
                 $departure->update(['status' => 'cancelled']);

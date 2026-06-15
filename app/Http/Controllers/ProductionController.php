@@ -9,6 +9,8 @@ use App\Models\Production;
 use App\Models\Recipe;
 use App\Models\ProductionCost;
 use App\Models\ProductionMaterial;
+use App\Models\Warehouse;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -18,7 +20,7 @@ class ProductionController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        $query = Production::with(['product', 'createdBy'])->latest();
+        $query = Production::with(['product', 'warehouse', 'createdBy'])->latest();
 
         if (!$user->is_super_admin) {
             $query->where('company_id', $user->getCurrentCompany()?->id);
@@ -50,6 +52,7 @@ class ProductionController extends Controller
             'products'           => Product::where('company_id', $companyId)->where('active', true)->where('category', 'PRODUCTO FINAL')->orderBy('name')->get(),
             'rawMaterials'       => Product::where('company_id', $companyId)->where('active', true)->where('category', 'MATERIA PRIMA')->orderBy('name')->get(),
             'recipes'            => Recipe::where('company_id', $companyId)->where('status', 'activa')->orderBy('name')->get(),
+            'warehouses'         => Warehouse::where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'batchNumber'        => Production::generateBatchNumber($companyId),
             'action'             => route('productions.store'),
             'method'             => 'POST',
@@ -63,6 +66,7 @@ class ProductionController extends Controller
         try {
             $validated = $request->validate([
                 'product_id'                => 'required|exists:products,id',
+                'warehouse_id'              => 'nullable|exists:warehouses,id',
                 'quantity_produced'         => 'required|numeric|min:0.01',
                 'production_date'           => 'required|date',
                 'notes'                     => 'nullable|string',
@@ -94,6 +98,7 @@ class ProductionController extends Controller
                 $production = Production::create([
                     'company_id'        => $companyId,
                     'product_id'        => $validated['product_id'],
+                    'warehouse_id'      => $validated['warehouse_id'] ?? null,
                     'batch_number'      => Production::generateBatchNumber($companyId),
                     'quantity_produced' => $validated['quantity_produced'],
                     'production_date'   => $validated['production_date'],
@@ -261,8 +266,14 @@ class ProductionController extends Controller
                             throw new \Exception("Stock insuficiente de materia prima: {$product->name}");
                         }
                         Product::where('id', $material->product_id)->decrement('current_stock', $material->quantity_used);
+                        if ($production->warehouse_id) {
+                            StockService::adjust($production->company_id, $production->warehouse_id, $material->product_id, -(float) $material->quantity_used);
+                        }
                     }
                     Product::where('id', $production->product_id)->increment('current_stock', $production->quantity_produced);
+                    if ($production->warehouse_id) {
+                        StockService::adjust($production->company_id, $production->warehouse_id, $production->product_id, (float) $production->quantity_produced);
+                    }
                 }
 
                 $production->update(['status' => $validated['status']]);

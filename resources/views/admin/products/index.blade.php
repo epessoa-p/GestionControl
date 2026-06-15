@@ -92,6 +92,23 @@
         </a>
     </div>
 
+    {{-- Filtro de almacén --}}
+    @if($warehouses->isNotEmpty())
+    <div class="d-flex gap-2 flex-wrap mb-3 align-items-center">
+        <span class="text-muted small fw-semibold me-1"><i class="bi bi-building me-1"></i>Almacén:</span>
+        <a href="{{ request()->fullUrlWithQuery(['warehouse_id' => null]) }}"
+           class="btn btn-sm {{ !$warehouseId ? 'btn-dark' : 'btn-outline-secondary' }} rounded-pill">
+            Todos
+        </a>
+        @foreach($warehouses as $wh)
+        <a href="{{ request()->fullUrlWithQuery(['warehouse_id' => $wh->id]) }}"
+           class="btn btn-sm {{ $warehouseId == $wh->id ? 'btn-primary' : 'btn-outline-secondary' }} rounded-pill">
+            {{ $wh->name }}
+        </a>
+        @endforeach
+    </div>
+    @endif
+
     {{-- Selectores de categoría --}}
     <div class="tab-selector">
         {{-- Producto Final --}}
@@ -130,7 +147,14 @@
                             <th>Unidad</th>
                             <th class="text-end">Costo</th>
                             <th class="text-end">Precio</th>
-                            <th class="text-end">Stock</th>
+                            <th class="text-end">
+                                Stock
+                                @if($warehouseId)
+                                <span class="badge bg-primary ms-1" style="font-size:.65rem">
+                                    {{ $warehouses->firstWhere('id', $warehouseId)?->name }}
+                                </span>
+                                @endif
+                            </th>
                             <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
@@ -144,8 +168,9 @@
                             <td class="text-end">${{ number_format($product->cost, 2) }}</td>
                             <td class="text-end">${{ number_format($product->price, 2) }}</td>
                             <td class="text-end">
-                                {{ number_format($product->current_stock, 2) }}
-                                @if($product->isLowStock())
+                                @php $stock = $warehouseId ? ($warehouseStocks[$product->id] ?? 0) : (float)$product->current_stock; @endphp
+                                {{ number_format($stock, 2) }}
+                                @if($product->min_stock > 0 && $stock <= $product->min_stock)
                                     <span class="badge bg-danger ms-1">Bajo</span>
                                 @endif
                             </td>

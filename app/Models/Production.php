@@ -13,7 +13,7 @@ class Production extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'product_id', 'batch_number', 'quantity_produced',
+        'company_id', 'product_id', 'warehouse_id', 'batch_number', 'quantity_produced',
         'production_date', 'status', 'total_cost', 'notes', 'created_by',
     ];
 
@@ -36,6 +36,7 @@ class Production extends Model
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
     public function product(): BelongsTo { return $this->belongsTo(Product::class); }
+    public function warehouse(): BelongsTo { return $this->belongsTo(Warehouse::class); }
     public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function costs(): HasMany { return $this->hasMany(ProductionCost::class); }
     public function materials(): HasMany { return $this->hasMany(ProductionMaterial::class); }

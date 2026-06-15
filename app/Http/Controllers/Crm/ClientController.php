@@ -5,23 +5,15 @@ namespace App\Http\Controllers\Crm;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\ClientContact;
+use App\Models\ClientDocument;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
-/**
- * Controlador de Clientes (CRM)
- *
- * Gestiona el ciclo de vida completo de un cliente: creación, consulta,
- * edición, eliminación y gestión de contactos adicionales.
- * Aplica aislamiento por empresa en todas las operaciones.
- */
 class ClientController extends Controller
 {
-    /**
-     * Lista los clientes de la empresa activa con filtros por estado y búsqueda.
-     */
     public function index(Request $request)
     {
         $companyId    = $this->getCompanyId();
@@ -62,9 +54,6 @@ class ClientController extends Controller
         return view('crm.clients.index', compact('clients', 'activeStatus', 'counts', 'users', 'search', 'assignedTo'));
     }
 
-    /**
-     * Muestra el formulario para crear un nuevo cliente.
-     */
     public function create()
     {
         $companyId    = $this->getCompanyId();
@@ -81,10 +70,6 @@ class ClientController extends Controller
         ]);
     }
 
-    /**
-     * Almacena un nuevo cliente con sus contactos opcionales.
-     * Usa transacción para garantizar consistencia.
-     */
     public function store(Request $request)
     {
         try {
@@ -92,6 +77,8 @@ class ClientController extends Controller
             $companyId = $this->getCompanyId();
 
             DB::transaction(function () use ($validated, $companyId, $request) {
+                $photoPath = $this->uploadPhoto($request);
+
                 $client = Client::create([
                     'company_id'      => $companyId,
                     'client_number'   => Client::generateClientNumber($companyId),
@@ -110,10 +97,14 @@ class ClientController extends Controller
                     'source'          => $validated['source'] ?? null,
                     'assigned_to'     => $validated['assigned_to'] ?? null,
                     'notes'           => $validated['notes'] ?? null,
+                    'photo'           => $photoPath,
+                    'latitude'        => $validated['latitude'] ?? null,
+                    'longitude'       => $validated['longitude'] ?? null,
                     'created_by'      => auth()->id(),
                 ]);
 
                 $this->syncContacts($client, $request->input('contacts', []));
+                $this->saveDocuments($request, $client);
             });
 
             return redirect()->route('crm.clients.index')->with('success', 'Cliente registrado exitosamente.');
@@ -122,32 +113,24 @@ class ClientController extends Controller
         } catch (\Throwable $e) {
             Log::error('Error al crear cliente', [
                 'user_id' => auth()->id(),
-                'input'   => $request->except('_token'),
                 'message' => $e->getMessage(),
-                'file'    => $e->getFile() . ':' . $e->getLine(),
             ]);
             return back()->withInput()->with('error', 'No fue posible registrar el cliente.');
         }
     }
 
-    /**
-     * Muestra el detalle de un cliente: info completa + contactos.
-     */
     public function show(Client $client)
     {
         $this->authorizeRecord($client);
-        $client->load(['assignedTo', 'createdBy', 'contacts']);
+        $client->load(['assignedTo', 'createdBy', 'contacts', 'documents']);
 
         return view('crm.clients.show', compact('client'));
     }
 
-    /**
-     * Muestra el formulario de edición de un cliente.
-     */
     public function edit(Client $client)
     {
         $this->authorizeRecord($client);
-        $client->load('contacts');
+        $client->load(['contacts', 'documents']);
 
         $companyId = $client->company_id;
         $users     = User::whereHas('companies', fn($q) => $q->where('company_id', $companyId))
@@ -161,9 +144,6 @@ class ClientController extends Controller
         ]);
     }
 
-    /**
-     * Actualiza los datos del cliente y sincroniza sus contactos.
-     */
     public function update(Request $request, Client $client)
     {
         $this->authorizeRecord($client);
@@ -172,6 +152,8 @@ class ClientController extends Controller
             $validated = $this->validateClient($request, $client->id);
 
             DB::transaction(function () use ($validated, $client, $request) {
+                $photoPath = $this->uploadPhoto($request, $client);
+
                 $client->update([
                     'type'            => $validated['type'],
                     'name'            => $validated['name'],
@@ -188,9 +170,13 @@ class ClientController extends Controller
                     'source'          => $validated['source'] ?? null,
                     'assigned_to'     => $validated['assigned_to'] ?? null,
                     'notes'           => $validated['notes'] ?? null,
+                    'photo'           => $photoPath,
+                    'latitude'        => $validated['latitude'] ?? null,
+                    'longitude'       => $validated['longitude'] ?? null,
                 ]);
 
                 $this->syncContacts($client, $request->input('contacts', []));
+                $this->saveDocuments($request, $client);
             });
 
             return redirect()->route('crm.clients.show', $client)->with('success', 'Cliente actualizado exitosamente.');
@@ -201,17 +187,37 @@ class ClientController extends Controller
                 'user_id'   => auth()->id(),
                 'client_id' => $client->id,
                 'message'   => $e->getMessage(),
-                'file'      => $e->getFile() . ':' . $e->getLine(),
             ]);
             return back()->withInput()->with('error', 'No fue posible actualizar el cliente.');
         }
     }
 
-    /**
-     * Búsqueda de clientes para autocompletado (devuelve JSON).
-     * Utilizado en el formulario de ventas para vincular un cliente registrado.
-     * Responde a GET /crm/clients/search?q=...
-     */
+    public function destroyPhoto(Client $client)
+    {
+        $this->authorizeRecord($client);
+
+        if ($client->photo) {
+            Storage::disk('public')->delete($client->photo);
+            $client->update(['photo' => null]);
+        }
+
+        return back()->with('success', 'Foto eliminada.');
+    }
+
+    public function destroyDocument(Client $client, ClientDocument $document)
+    {
+        $this->authorizeRecord($client);
+
+        if ($document->client_id !== $client->id) {
+            abort(404);
+        }
+
+        Storage::disk('public')->delete($document->filename);
+        $document->delete();
+
+        return back()->with('success', 'Documento eliminado.');
+    }
+
     public function search(Request $request): \Illuminate\Http\JsonResponse
     {
         $q         = trim($request->get('q', ''));
@@ -245,9 +251,6 @@ class ClientController extends Controller
         ]));
     }
 
-    /**
-     * Elimina (soft delete) un cliente.
-     */
     public function destroy(Client $client)
     {
         $this->authorizeRecord($client);
@@ -260,7 +263,6 @@ class ClientController extends Controller
                 'user_id'   => auth()->id(),
                 'client_id' => $client->id,
                 'message'   => $e->getMessage(),
-                'file'      => $e->getFile() . ':' . $e->getLine(),
             ]);
             return back()->with('error', 'No fue posible eliminar el cliente.');
         }
@@ -268,41 +270,81 @@ class ClientController extends Controller
 
     // ─── Métodos privados ─────────────────────────────────────
 
-    /**
-     * Valida los campos del formulario de cliente.
-     * Excluye el documento del cliente actual en la validación de unicidad.
-     */
     private function validateClient(Request $request, ?int $excludeId = null): array
     {
-        $companyId   = $this->getCompanyId();
+        $companyId     = $this->getCompanyId();
         $docUniqueRule = \Illuminate\Validation\Rule::unique('clients', 'document_number')
             ->where('company_id', $companyId)
             ->whereNull('deleted_at')
             ->ignore($excludeId);
 
         return $request->validate([
-            'type'            => 'required|in:' . implode(',', Client::TYPES),
-            'name'            => 'required|string|max:255',
-            'commercial_name' => 'nullable|string|max:255',
-            'document_type'   => 'nullable|in:' . implode(',', Client::DOCUMENT_TYPES),
-            'document_number' => ['nullable', 'string', 'max:50', $docUniqueRule],
-            'email'           => 'nullable|email|max:255',
-            'phone'           => 'nullable|string|max:30',
-            'mobile'          => 'nullable|string|max:30',
-            'address'         => 'nullable|string|max:500',
-            'city'            => 'nullable|string|max:100',
-            'country'         => 'nullable|string|max:100',
-            'status'          => 'required|in:' . implode(',', Client::STATUSES),
-            'source'          => 'nullable|in:' . implode(',', Client::SOURCES),
-            'assigned_to'     => 'nullable|exists:users,id',
-            'notes'           => 'nullable|string',
+            'type'              => 'required|in:' . implode(',', Client::TYPES),
+            'name'              => 'required|string|max:255',
+            'commercial_name'   => 'nullable|string|max:255',
+            'document_type'     => 'nullable|in:' . implode(',', Client::DOCUMENT_TYPES),
+            'document_number'   => ['nullable', 'string', 'max:50', $docUniqueRule],
+            'email'             => 'nullable|email|max:255',
+            'phone'             => 'nullable|string|max:30',
+            'mobile'            => 'nullable|string|max:30',
+            'address'           => 'nullable|string|max:500',
+            'city'              => 'nullable|string|max:100',
+            'country'           => 'nullable|string|max:100',
+            'status'            => 'required|in:' . implode(',', Client::STATUSES),
+            'source'            => 'nullable|in:' . implode(',', Client::SOURCES),
+            'assigned_to'       => 'nullable|exists:users,id',
+            'notes'             => 'nullable|string',
+            'photo'             => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'documents.*'       => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'latitude'          => 'nullable|numeric|between:-90,90',
+            'longitude'         => 'nullable|numeric|between:-180,180',
         ]);
     }
 
-    /**
-     * Sincroniza los contactos de un cliente: elimina los anteriores y crea los nuevos.
-     * Solo procesa filas con nombre informado.
-     */
+    private function uploadPhoto(Request $request, ?Client $client = null): ?string
+    {
+        if (!$request->hasFile('photo')) {
+            return $client?->photo;
+        }
+
+        if ($client?->photo) {
+            Storage::disk('public')->delete($client->photo);
+        }
+
+        return $request->file('photo')->store('clients/photos', 'public');
+    }
+
+    private function saveDocuments(Request $request, Client $client): void
+    {
+        if (!$request->hasFile('documents')) {
+            return;
+        }
+
+        foreach ($request->file('documents') as $type => $file) {
+            if (!$file || !in_array($type, ClientDocument::TYPES)) {
+                continue;
+            }
+
+            // Reemplazar si ya existe uno del mismo tipo
+            $existing = $client->documents()->where('type', $type)->first();
+            if ($existing) {
+                Storage::disk('public')->delete($existing->filename);
+                $existing->delete();
+            }
+
+            $path = $file->store('clients/documents', 'public');
+
+            ClientDocument::create([
+                'client_id'     => $client->id,
+                'type'          => $type,
+                'filename'      => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type'     => $file->getMimeType(),
+                'size'          => $file->getSize(),
+            ]);
+        }
+    }
+
     private function syncContacts(Client $client, array $contacts): void
     {
         $client->contacts()->delete();
@@ -323,9 +365,6 @@ class ClientController extends Controller
         }
     }
 
-    /**
-     * Obtiene el ID de la empresa activa según el tipo de usuario.
-     */
     private function getCompanyId(): ?int
     {
         $user = auth()->user();
@@ -334,10 +373,6 @@ class ClientController extends Controller
             : $user->getCurrentCompany()?->id;
     }
 
-    /**
-     * Verifica que el cliente pertenece a la empresa activa.
-     * Lanza 403 si no coincide para evitar acceso entre empresas.
-     */
     private function authorizeRecord(Client $client): void
     {
         if (!auth()->user()->is_super_admin && $client->company_id !== auth()->user()->getCurrentCompany()?->id) {

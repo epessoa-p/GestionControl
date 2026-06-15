@@ -6,10 +6,10 @@ use App\Models\User;
 use App\Models\Company;
 use App\Models\Sale;
 use App\Models\Product;
-use App\Models\Commission;
+use App\Models\AccountPayable;
 use App\Models\Production;
 use App\Models\CashSession;
-use App\Models\Tracking;
+use App\Models\SaleInstallment;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -39,8 +39,9 @@ class DashboardController extends Controller
             ->whereBetween('sale_date', [$startOfMonth, $now])->count();
         $pendingSales = (clone $salesQuery)->where('status', 'pending')->count();
 
-        // Commissions
-        $pendingCommissions = Commission::where('company_id', $companyId)->where('status', 'pending')->sum('amount');
+        // Cuentas por pagar
+        $pendingPayables = AccountPayable::where('company_id', $companyId)
+            ->whereIn('status', ['pendiente', 'pago_parcial', 'vencida'])->sum('balance');
 
         // Inventory
         $lowStockCount = Product::where('company_id', $companyId)->where('active', true)
@@ -50,8 +51,9 @@ class DashboardController extends Controller
         // Productions
         $activeProductions = Production::where('company_id', $companyId)->where('status', 'in_progress')->count();
 
-        // Trackings
-        $openTrackings = Tracking::where('company_id', $companyId)->whereIn('status', ['open', 'in_progress'])->count();
+        // Cuentas por cobrar
+        $pendingReceivables = SaleInstallment::whereHas('sale', fn($q) => $q->where('company_id', $companyId))
+            ->where('status', 'pendiente')->sum('amount');
 
         // Cash sessions
         $openCashSessions = CashSession::whereHas('cashRegister', fn($q) => $q->where('company_id', $companyId))
@@ -88,11 +90,11 @@ class DashboardController extends Controller
             'totalSalesMonth',
             'totalSalesCount',
             'pendingSales',
-            'pendingCommissions',
+            'pendingPayables',
             'lowStockCount',
             'totalProducts',
             'activeProductions',
-            'openTrackings',
+            'pendingReceivables',
             'openCashSessions',
             'salesChartData',
             'paymentMethodData',

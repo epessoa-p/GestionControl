@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Modelo de Cliente (CRM)
@@ -37,10 +38,15 @@ class Client extends Model
         'assigned_to',
         'notes',
         'created_by',
+        'photo',
+        'latitude',
+        'longitude',
     ];
 
     protected $casts = [
         'deleted_at' => 'datetime',
+        'latitude'   => 'decimal:8',
+        'longitude'  => 'decimal:8',
     ];
 
     // ─── Constantes de negocio ────────────────────────────────
@@ -117,6 +123,24 @@ class Client extends Model
     public function primaryContact(): ?ClientContact
     {
         return $this->contacts()->where('is_primary', true)->first();
+    }
+
+    /** Documentos adjuntos (CI, factura, etc.). */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(ClientDocument::class)->orderBy('type');
+    }
+
+    /** Documento de un tipo específico (uno por tipo). */
+    public function documentByType(string $type): ?ClientDocument
+    {
+        return $this->documents->firstWhere('type', $type);
+    }
+
+    /** URL pública de la foto del cliente. */
+    public function photoUrl(): ?string
+    {
+        return $this->photo ? Storage::disk('public')->url($this->photo) : null;
     }
 
     // ─── Métodos de negocio ───────────────────────────────────

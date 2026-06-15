@@ -6,6 +6,7 @@ use App\Models\Entry;
 use App\Models\EntryDetail;
 use App\Models\Product;
 use App\Models\Warehouse;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -126,6 +127,7 @@ class EntryController extends Controller
                 foreach ($entry->details as $detail) {
                     Product::where('id', $detail->product_id)
                         ->increment('current_stock', $detail->quantity);
+                    StockService::adjust($entry->company_id, $entry->warehouse_id, $detail->product_id, (float) $detail->quantity);
                 }
             });
             return back()->with('success', 'Entrada confirmada e inventario actualizado.');
@@ -148,6 +150,7 @@ class EntryController extends Controller
                     foreach ($entry->details as $detail) {
                         Product::where('id', $detail->product_id)
                             ->decrement('current_stock', $detail->quantity);
+                        StockService::adjust($entry->company_id, $entry->warehouse_id, $detail->product_id, -(float) $detail->quantity);
                     }
                 }
                 $entry->update(['status' => 'cancelled']);

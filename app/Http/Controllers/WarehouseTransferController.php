@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Warehouse;
 use App\Models\WarehouseTransfer;
 use App\Models\WarehouseTransferDetail;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -111,6 +112,7 @@ class WarehouseTransferController extends Controller
                         throw new \Exception("Stock insuficiente para {$product->name} en almacén origen.");
                     }
                     Product::where('id', $detail->product_id)->decrement('current_stock', $detail->quantity);
+                    StockService::adjust($transfer->company_id, $transfer->from_warehouse_id, $detail->product_id, -(float) $detail->quantity);
                 }
                 $transfer->update(['status' => 'in_transit']);
             });
@@ -133,6 +135,7 @@ class WarehouseTransferController extends Controller
                 // Increase stock in destination warehouse
                 foreach ($transfer->details as $detail) {
                     Product::where('id', $detail->product_id)->increment('current_stock', $detail->quantity);
+                    StockService::adjust($transfer->company_id, $transfer->to_warehouse_id, $detail->product_id, (float) $detail->quantity);
                 }
                 $transfer->update([
                     'status' => 'completed',
@@ -160,6 +163,7 @@ class WarehouseTransferController extends Controller
                 if ($transfer->status === 'in_transit') {
                     foreach ($transfer->details as $detail) {
                         Product::where('id', $detail->product_id)->increment('current_stock', $detail->quantity);
+                        StockService::adjust($transfer->company_id, $transfer->from_warehouse_id, $detail->product_id, (float) $detail->quantity);
                     }
                 }
                 $transfer->update(['status' => 'cancelled']);

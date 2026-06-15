@@ -12,11 +12,10 @@ use App\Http\Controllers\Admin\PersonalController;
 use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\Admin\MeasurementUnitController;
 use App\Http\Controllers\DocumentTemplates\DocumentTemplateController;
-use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\DepartureController;
+use App\Http\Controllers\InventoryMovementController;
 use App\Http\Controllers\CashRegisterController;
-use App\Http\Controllers\PettyCashController;
 use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\MachineController;
@@ -25,8 +24,10 @@ use App\Http\Controllers\PromoterController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\WarehouseTransferController;
 use App\Http\Controllers\OrderController;
-use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\TreasuryAccountController;
+use App\Http\Controllers\MovimientoController;
+use App\Http\Controllers\ArqueoController;
 use Illuminate\Support\Facades\Route;
 
 // Guest routes
@@ -139,17 +140,6 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{warehouse}', [WarehouseController::class, 'destroy'])->name('destroy');
     });
 
-    // ─── Seguimientos ───
-    Route::prefix('trackings')->name('trackings.')->group(function () {
-        Route::get('/', [TrackingController::class, 'index'])->name('index');
-        Route::get('/create', [TrackingController::class, 'create'])->name('create');
-        Route::post('/', [TrackingController::class, 'store'])->name('store');
-        Route::get('/{tracking}', [TrackingController::class, 'show'])->name('show');
-        Route::get('/{tracking}/edit', [TrackingController::class, 'edit'])->name('edit');
-        Route::put('/{tracking}', [TrackingController::class, 'update'])->name('update');
-        Route::delete('/{tracking}', [TrackingController::class, 'destroy'])->name('destroy');
-    });
-
     // ─── Entradas ───
     Route::prefix('entries')->name('entries.')->group(function () {
         Route::get('/', [EntryController::class, 'index'])->name('index');
@@ -191,15 +181,27 @@ Route::middleware('auth')->group(function () {
         Route::post('/{cashSession}/movement', [CashRegisterController::class, 'addMovement'])->name('add-movement');
     });
 
-    // ─── Caja Chica ───
-    Route::prefix('petty-cash')->name('petty-cash.')->group(function () {
-        Route::get('/', [PettyCashController::class, 'index'])->name('index');
-        Route::get('/create', [PettyCashController::class, 'create'])->name('create');
-        Route::post('/', [PettyCashController::class, 'store'])->name('store');
-        Route::get('/{pettyCash}', [PettyCashController::class, 'show'])->name('show');
-        Route::post('/{pettyCash}/movement', [PettyCashController::class, 'addMovement'])->name('add-movement');
-        Route::delete('/{pettyCash}', [PettyCashController::class, 'destroy'])->name('destroy');
+    // ─── Tesorería ───
+    Route::prefix('treasury')->name('treasury.')->group(function () {
+        Route::get('/',                             [TreasuryAccountController::class, 'index'])->name('index');
+        Route::get('/create',                       [TreasuryAccountController::class, 'create'])->name('create');
+        Route::post('/',                            [TreasuryAccountController::class, 'store'])->name('store');
+        Route::get('/{account}',                    [TreasuryAccountController::class, 'show'])->name('show');
+        Route::get('/{account}/edit',               [TreasuryAccountController::class, 'edit'])->name('edit');
+        Route::put('/{account}',                    [TreasuryAccountController::class, 'update'])->name('update');
+        Route::delete('/{account}',                 [TreasuryAccountController::class, 'destroy'])->name('destroy');
+        Route::post('/{account}/movements',         [TreasuryAccountController::class, 'addMovement'])->name('movements.store');
+        Route::delete('/{account}/movements/{mov}', [TreasuryAccountController::class, 'deleteMovement'])->name('movements.destroy');
     });
+
+    // ─── Movimientos financieros ───
+    Route::get('/movimientos', [MovimientoController::class, 'index'])->name('movimientos.index');
+
+    // ─── Arqueos (cierres de caja) ───
+    Route::get('/arqueos', [ArqueoController::class, 'index'])->name('arqueos.index');
+
+    // ─── Movimientos de inventario (ledger de solo lectura) ───
+    Route::get('/inventario/movimientos', [InventoryMovementController::class, 'index'])->name('inventory-movements.index');
 
     // ─── Producción ───
     Route::prefix('productions')->name('productions.')->group(function () {
@@ -296,14 +298,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         Route::post('/{order}/update-status', [OrderController::class, 'updateStatus'])->name('update-status');
         Route::delete('/{order}', [OrderController::class, 'destroy'])->name('destroy');
-    });
-
-    // ─── Comisiones ───
-    Route::prefix('commissions')->name('commissions.')->group(function () {
-        Route::get('/', [CommissionController::class, 'index'])->name('index');
-        Route::post('/{commission}/mark-paid', [CommissionController::class, 'markPaid'])->name('mark-paid');
-        Route::post('/mark-paid-bulk', [CommissionController::class, 'markPaidBulk'])->name('mark-paid-bulk');
-        Route::delete('/{commission}', [CommissionController::class, 'destroy'])->name('destroy');
     });
 
     // ─── Reportes ───

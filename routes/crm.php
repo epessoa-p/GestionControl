@@ -21,9 +21,11 @@ Route::middleware('auth')->prefix('crm')->name('crm.')->group(function () {
         Route::get('/search',         [ClientController::class, 'search'])->name('search');   // JSON autocomplete
         Route::post('/',              [ClientController::class, 'store'])->name('store');
         Route::get('/{client}',       [ClientController::class, 'show'])->name('show');
-        Route::get('/{client}/edit',  [ClientController::class, 'edit'])->name('edit');
-        Route::put('/{client}',       [ClientController::class, 'update'])->name('update');
-        Route::delete('/{client}',    [ClientController::class, 'destroy'])->name('destroy');
+        Route::get('/{client}/edit',                              [ClientController::class, 'edit'])->name('edit');
+        Route::put('/{client}',                                   [ClientController::class, 'update'])->name('update');
+        Route::delete('/{client}',                                [ClientController::class, 'destroy'])->name('destroy');
+        Route::delete('/{client}/photo',                          [ClientController::class, 'destroyPhoto'])->name('photo.destroy');
+        Route::delete('/{client}/documents/{document}',           [ClientController::class, 'destroyDocument'])->name('documents.destroy');
     });
 
 });

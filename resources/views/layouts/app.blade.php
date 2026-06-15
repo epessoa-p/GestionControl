@@ -19,168 +19,7 @@
             </div>
         </div>
 
-        <div class="sidebar-section-title">Interface</div>
-        <ul class="nav flex-column gap-1">
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
-                    <i class="bi bi-house"></i> Overview
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('trackings.*') ? 'active' : '' }}" href="{{ route('trackings.index') }}">
-                    <i class="bi bi-clipboard-check"></i> Seguimientos
-                </a>
-            </li>
-        </ul>
-
-        <div class="sidebar-section-title mt-4">CRM</div>
-        <ul class="nav flex-column gap-1">
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('crm.clients.*') ? 'active' : '' }}" href="{{ route('crm.clients.index') }}">
-                    <i class="bi bi-people"></i> Clientes
-                </a>
-            </li>
-        </ul>
-
-        <div class="sidebar-section-title mt-4">Operaciones</div>
-        <ul class="nav flex-column gap-1">
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">
-                    <i class="bi bi-box-arrow-in-down"></i> Entradas
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('departures.*') ? 'active' : '' }}" href="{{ route('departures.index') }}">
-                    <i class="bi bi-box-arrow-up"></i> Salidas
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('sales.*') ? 'active' : '' }}" href="{{ route('sales.index') }}">
-                    <i class="bi bi-cart3"></i> Ventas
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('transfers.*') ? 'active' : '' }}" href="{{ route('transfers.index') }}">
-                    <i class="bi bi-arrow-left-right"></i> Traspasos
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">
-                    <i class="bi bi-clipboard2-data"></i> Órdenes
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('productions.*') ? 'active' : '' }}" href="{{ route('productions.index') }}">
-                    <i class="bi bi-gear-wide-connected"></i> Produccion
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('recipes.*') ? 'active' : '' }}" href="{{ route('recipes.index') }}">
-                    <i class="bi bi-journal-text"></i> Recetas
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('overhead-periods.*') ? 'active' : '' }}" href="{{ route('overhead-periods.index') }}">
-                    <i class="bi bi-calendar2-week"></i> Gastos período
-                </a>
-            </li>
-        </ul>
-
-        <div class="sidebar-section-title mt-4">Finanzas</div>
-        <ul class="nav flex-column gap-1">
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('cash-registers.*') || request()->routeIs('cash-sessions.*') ? 'active' : '' }}" href="{{ route('cash-registers.index') }}">
-                    <i class="bi bi-cash-stack"></i> Cajas
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('petty-cash.*') ? 'active' : '' }}" href="{{ route('petty-cash.index') }}">
-                    <i class="bi bi-wallet2"></i> Caja Chica
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('commissions.*') ? 'active' : '' }}" href="{{ route('commissions.index') }}">
-                    <i class="bi bi-percent"></i> Comisiones
-                </a>
-            </li>
-        </ul>
-
-        <div class="sidebar-section-title mt-4">Comercial</div>
-        <ul class="nav flex-column gap-1">
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('promoters.*') ? 'active' : '' }}" href="{{ route('promoters.index') }}">
-                    <i class="bi bi-megaphone"></i> Promotores
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}">
-                    <i class="bi bi-file-earmark-bar-graph"></i> Reportes
-                </a>
-            </li>
-        </ul>
-
-        <div class="sidebar-section-title mt-4">Administracion</div>
-        <ul class="nav flex-column gap-1">
-            @if(auth()->user()->is_super_admin)
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" href="{{ route('companies.index') }}">
-                        <i class="bi bi-building"></i> Empresas
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('roles.*') ? 'active' : '' }}" href="{{ route('roles.index') }}">
-                        <i class="bi bi-shield-lock"></i> Roles
-                    </a>
-                </li>
-            @endif
-            @if(auth()->user()->hasPermissionInCompany('users.view', $currentCompany))
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
-                        <i class="bi bi-person-gear"></i> Usuarios
-                    </a>
-                </li>
-            @endif
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('branches.*') ? 'active' : '' }}" href="{{ route('branches.index') }}">
-                    <i class="bi bi-diagram-2"></i> Sucursales
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">
-                    <i class="bi bi-box-seam"></i> Productos
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('measurement-units.*') ? 'active' : '' }}" href="{{ route('measurement-units.index') }}">
-                    <i class="bi bi-rulers"></i> Unidades de medida
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">
-                    <i class="bi bi-building-add"></i> Almacenes
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('machinery.*') ? 'active' : '' }}" href="{{ route('machinery.index') }}">
-                    <i class="bi bi-tools"></i> Maquinaria
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}">
-                    <i class="bi bi-briefcase"></i> Cargos
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('personal.*') ? 'active' : '' }}" href="{{ route('personal.index') }}">
-                    <i class="bi bi-person-vcard"></i> Personal
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">
-                    <i class="bi bi-file-earmark-ruled"></i> Plantillas
-                </a>
-            </li>
-        </ul>
+        @include('layouts._sidebar_nav', ['prefix' => 'desk'])
     </aside>
 
     <main class="app-main">
@@ -454,61 +293,107 @@
     </div>
     <div class="offcanvas-body p-0">
         <nav class="p-3">
-            <div class="sidebar-section-title">Interface</div>
-            <ul class="nav flex-column gap-1">
-                <li><a class="nav-link app-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">Overview</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('trackings.*') ? 'active' : '' }}" href="{{ route('trackings.index') }}">Seguimientos</a></li>
-            </ul>
-            <div class="sidebar-section-title mt-3">CRM</div>
-            <ul class="nav flex-column gap-1">
-                <li><a class="nav-link app-link {{ request()->routeIs('crm.clients.*') ? 'active' : '' }}" href="{{ route('crm.clients.index') }}">Clientes</a></li>
-            </ul>
-            <div class="sidebar-section-title mt-3">Operaciones</div>
-            <ul class="nav flex-column gap-1">
-                <li><a class="nav-link app-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">Entradas</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('departures.*') ? 'active' : '' }}" href="{{ route('departures.index') }}">Salidas</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('sales.*') ? 'active' : '' }}" href="{{ route('sales.index') }}">Ventas</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('transfers.*') ? 'active' : '' }}" href="{{ route('transfers.index') }}">Traspasos</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">Órdenes</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('productions.*') ? 'active' : '' }}" href="{{ route('productions.index') }}">Produccion</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('recipes.*') ? 'active' : '' }}" href="{{ route('recipes.index') }}">Recetas</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('overhead-periods.*') ? 'active' : '' }}" href="{{ route('overhead-periods.index') }}">Gastos período</a></li>
-            </ul>
-            <div class="sidebar-section-title mt-3">Finanzas</div>
-            <ul class="nav flex-column gap-1">
-                <li><a class="nav-link app-link {{ request()->routeIs('cash-registers.*') || request()->routeIs('cash-sessions.*') ? 'active' : '' }}" href="{{ route('cash-registers.index') }}">Cajas</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('petty-cash.*') ? 'active' : '' }}" href="{{ route('petty-cash.index') }}">Caja Chica</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('commissions.*') ? 'active' : '' }}" href="{{ route('commissions.index') }}">Comisiones</a></li>
-            </ul>
-            <div class="sidebar-section-title mt-3">Comercial</div>
-            <ul class="nav flex-column gap-1">
-                <li><a class="nav-link app-link {{ request()->routeIs('promoters.*') ? 'active' : '' }}" href="{{ route('promoters.index') }}">Promotores</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}">Reportes</a></li>
-            </ul>
-            <div class="sidebar-section-title mt-3">Administracion</div>
-            <ul class="nav flex-column gap-1">
-                @if(auth()->user()->is_super_admin)
-                    <li><a class="nav-link app-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" href="{{ route('companies.index') }}">Empresas</a></li>
-                    <li><a class="nav-link app-link {{ request()->routeIs('roles.*') ? 'active' : '' }}" href="{{ route('roles.index') }}">Roles</a></li>
-                @endif
-                @if(auth()->user()->hasPermissionInCompany('users.view', $currentCompany))
-                    <li><a class="nav-link app-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">Usuarios</a></li>
-                @endif
-                <li><a class="nav-link app-link {{ request()->routeIs('branches.*') ? 'active' : '' }}" href="{{ route('branches.index') }}">Sucursales</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">Productos</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('measurement-units.*') ? 'active' : '' }}" href="{{ route('measurement-units.index') }}">Unidades de medida</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">Almacenes</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('machinery.*') ? 'active' : '' }}" href="{{ route('machinery.index') }}">Maquinaria</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}">Cargos</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('personal.*') ? 'active' : '' }}" href="{{ route('personal.index') }}">Personal</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">Plantillas</a></li>
-            </ul>
+            @include('layouts._sidebar_nav', ['prefix' => 'mob'])
         </nav>
     </div>
 </div>
 
 @push('styles')
 <style>
+    /* ── Sidebar section wrappers ───────────────────────────── */
+    .sidebar-sec {
+        border-radius: 8px;
+        margin-bottom: 3px;
+        overflow: hidden;
+    }
+
+    /* Per-section color palette (CSS custom properties) */
+    .sidebar-sec[data-sec="crm"]   { --sec-r:79;  --sec-g:70;  --sec-b:229; }  /* indigo  */
+    .sidebar-sec[data-sec="sales"] { --sec-r:13;  --sec-g:148; --sec-b:136; }  /* teal    */
+    .sidebar-sec[data-sec="purch"] { --sec-r:5;   --sec-g:150; --sec-b:105; }  /* emerald */
+    .sidebar-sec[data-sec="ops"]   { --sec-r:194; --sec-g:120; --sec-b:3;   }  /* amber   */
+    .sidebar-sec[data-sec="inv"]   { --sec-r:124; --sec-g:58;  --sec-b:237; }  /* violet  */
+    .sidebar-sec[data-sec="fin"]   { --sec-r:2;   --sec-g:132; --sec-b:199; }  /* sky     */
+    .sidebar-sec[data-sec="com"]   { --sec-r:190; --sec-g:24;  --sec-b:93;  }  /* pink    */
+    .sidebar-sec[data-sec="admin"] { --sec-r:71;  --sec-g:85;  --sec-b:105; }  /* slate   */
+
+    /* ── Section header button ──────────────────────────────── */
+    .sidebar-section-btn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        background: transparent;
+        border: none;
+        border-radius: 7px;
+        padding: 7px 10px;
+        cursor: pointer;
+        color: #9ca3af;
+        font-size: .68rem;
+        font-weight: 800;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        text-align: left;
+        transition: background .15s, color .15s;
+    }
+
+    /* Collapsed: hover gives subtle tint */
+    .sidebar-section-btn.collapsed:hover {
+        background: rgba(0,0,0,.045);
+        color: #555;
+    }
+
+    /* EXPANDED: colored header */
+    .sidebar-section-btn:not(.collapsed) {
+        background: rgb(var(--sec-r,79), var(--sec-g,70), var(--sec-b,229));
+        color: #fff;
+        border-radius: 7px 7px 0 0;
+        padding: 8px 10px;
+    }
+
+    .sidebar-chevron {
+        font-size: .65rem;
+        transition: transform .2s;
+        flex-shrink: 0;
+        opacity: .7;
+    }
+    .sidebar-section-btn:not(.collapsed) .sidebar-chevron { transform: rotate(0deg);   opacity: 1; color: rgba(255,255,255,.8); }
+    .sidebar-section-btn.collapsed        .sidebar-chevron { transform: rotate(-90deg); }
+
+    /* ── Expanded content area ──────────────────────────────── */
+    [data-sidebar-section].show {
+        background: rgba(var(--sec-r,79), var(--sec-g,70), var(--sec-b,229), .055);
+        border: 1px solid rgba(var(--sec-r,79), var(--sec-g,70), var(--sec-b,229), .20);
+        border-top: none;
+        border-radius: 0 0 7px 7px;
+        padding: 6px 5px 6px;
+        margin-bottom: 2px;
+    }
+
+    /* Links inside expanded section */
+    [data-sidebar-section] .app-link:hover {
+        background: rgba(var(--sec-r,79), var(--sec-g,70), var(--sec-b,229), .12);
+        color: rgb(var(--sec-r,79), var(--sec-g,70), var(--sec-b,229));
+    }
+
+    [data-sidebar-section] .app-link.active {
+        background: #fff;
+        border-color: rgba(var(--sec-r,79), var(--sec-g,70), var(--sec-b,229), .35);
+        color: rgb(var(--sec-r,79), var(--sec-g,70), var(--sec-b,229));
+        font-weight: 600;
+    }
+
+    /* Sub-items (Actividades) */
+    .app-link--sub  { padding-left: 22px; font-size: .83rem; }
+
+    /* Placeholder items */
+    .app-link--soon {
+        opacity: .40;
+        cursor: default !important;
+        pointer-events: none;
+    }
+    .badge-soon { font-size: .58rem; }
+
     .app-shell {
         min-height: 100vh;
         background: #f2f2f2;
@@ -564,13 +449,17 @@
 
     .app-link {
         border-radius: 6px;
-        padding: 8px 10px;
+        padding: 7px 10px;
         color: #464646;
         border: 1px solid transparent;
-        font-size: 0.88rem;
-        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        transition: background .15s, color .15s, border-color .15s;
+        display: flex;
+        align-items: center;
+        gap: 7px;
     }
 
+    /* Default hover/active for links outside .sidebar-sec (e.g. Overview) */
     .app-link:hover {
         background: #ebebeb;
         color: #202020;
@@ -581,7 +470,7 @@
         border-color: #d7d7d7;
         color: #111;
         font-weight: 600;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        box-shadow: 0 1px 3px rgba(0,0,0,.06);
     }
 
     .app-main {
@@ -844,19 +733,6 @@
         background: linear-gradient(135deg, #0f3460, #1a1a2e);
         color: #fff;
     }
-</style>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var openModal = document.getElementById('navOpenCashModal');
-        if (openModal) {
-            openModal.addEventListener('shown.bs.modal', function () {
-                var amountInput = document.getElementById('navOpenAmount');
-                if (amountInput) { amountInput.focus(); amountInput.select(); }
-            });
-        }
-    });
-</script>
-<style>
 
     @media (max-width: 991.98px) {
         .app-sidebar {
@@ -874,5 +750,33 @@
         }
     }
 </style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Modal apertura de caja: focus al monto al abrirse
+        var openModal = document.getElementById('navOpenCashModal');
+        if (openModal) {
+            openModal.addEventListener('shown.bs.modal', function () {
+                var amountInput = document.getElementById('navOpenAmount');
+                if (amountInput) { amountInput.focus(); amountInput.select(); }
+            });
+        }
+
+        // Sidebar accordion: restaurar estado localStorage para secciones no activas
+        document.querySelectorAll('[data-sidebar-section]').forEach(function (el) {
+            var key   = 'sidebar_' + el.id;
+            var saved = localStorage.getItem(key);
+            // Si está oculto por defecto (PHP lo marcó collapsed) pero el usuario lo dejó abierto
+            if (!el.classList.contains('show') && saved === 'open') {
+                bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).show();
+            }
+            el.addEventListener('hidden.bs.collapse', function () {
+                localStorage.setItem('sidebar_' + el.id, 'closed');
+            });
+            el.addEventListener('shown.bs.collapse', function () {
+                localStorage.setItem('sidebar_' + el.id, 'open');
+            });
+        });
+    });
+</script>
 @endpush
 @endsection
