@@ -7,8 +7,10 @@ use App\Models\Branch;
 use App\Models\CashMovement;
 use App\Models\CashSession;
 use App\Models\SaleInstallment;
+use App\Models\TreasuryMovement;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MovimientoController extends Controller
 {
@@ -34,58 +36,77 @@ class MovimientoController extends Controller
 
         $branches = Branch::where('company_id', $companyId)->orderBy('name')->get();
 
-        // Base query: movements linked to this company via cash_registers
-        $baseQuery = CashMovement::with(['cashSession.cashRegister.branch', 'createdBy'])
-            ->whereHas('cashSession.cashRegister', function ($q) use ($companyId, $branchId) {
-                $q->where('company_id', $companyId);
-                if ($branchId) {
-                    $q->where('branch_id', $branchId);
-                }
-            });
+        // ── Ledger unificado: caja (cash_movements) + tesorería (treasury_movements) ──
+        // Con filtro de sucursal solo aplica caja (tesorería es a nivel empresa).
+        $buildLedger = function () use ($companyId, $branchId, $dateFrom, $dateTo) {
+            $cash = DB::table('cash_movements as cm')
+                ->join('cash_sessions as cs', 'cs.id', '=', 'cm.cash_session_id')
+                ->join('cash_registers as cr', 'cr.id', '=', 'cs.cash_register_id')
+                ->leftJoin('branches as b', 'b.id', '=', 'cr.branch_id')
+                ->where('cr.company_id', $companyId)
+                ->whereNull('cm.deleted_at')
+                ->when($branchId, fn($q) => $q->where('cr.branch_id', $branchId))
+                ->when($dateFrom, fn($q) => $q->whereDate('cm.movement_date', '>=', $dateFrom))
+                ->when($dateTo, fn($q) => $q->whereDate('cm.movement_date', '<=', $dateTo))
+                ->selectRaw("'caja' as origin_type, cm.type as type, cm.category as category, cm.concept as concept,
+                    cm.payment_method as payment_method, cm.amount as amount, cm.movement_date as movement_date,
+                    cr.name as origin_name, b.name as origin_branch");
 
-        if ($dateFrom) {
-            $baseQuery->whereDate('movement_date', '>=', $dateFrom);
-        }
-        if ($dateTo) {
-            $baseQuery->whereDate('movement_date', '<=', $dateTo);
-        }
+            if (!$branchId) {
+                $treasury = DB::table('treasury_movements as tm')
+                    ->join('treasury_accounts as ta', 'ta.id', '=', 'tm.treasury_account_id')
+                    ->where('tm.company_id', $companyId)
+                    ->whereNull('tm.deleted_at')
+                    ->when($dateFrom, fn($q) => $q->whereDate('tm.movement_date', '>=', $dateFrom))
+                    ->when($dateTo, fn($q) => $q->whereDate('tm.movement_date', '<=', $dateTo))
+                    ->selectRaw("'tesoreria' as origin_type,
+                        CASE WHEN tm.type = 'entrada' THEN 'income' ELSE 'expense' END as type,
+                        tm.category as category, tm.description as concept,
+                        NULL as payment_method, tm.amount as amount, tm.movement_date as movement_date,
+                        ta.name as origin_name, NULL as origin_branch");
+                $cash->unionAll($treasury);
+            }
 
-        // KPI totals for the active period/branch filter
-        $kpiQuery      = clone $baseQuery;
-        $totalIngresos = (float) (clone $kpiQuery)->where('type', 'income')->sum('amount');
-        $totalEgresos  = (float) (clone $kpiQuery)->where('type', 'expense')->sum('amount');
+            return DB::query()->fromSub($cash, 'm');
+        };
+
+        // KPI totales del período/sucursal
+        $totalIngresos = (float) $buildLedger()->where('type', 'income')->sum('amount');
+        $totalEgresos  = (float) $buildLedger()->where('type', 'expense')->sum('amount');
         $balance       = $totalIngresos - $totalEgresos;
 
-        // Historical KPIs (no date filter, all branches) — shown in header
-        $historicBase      = CashMovement::whereHas('cashSession.cashRegister', fn($q) => $q->where('company_id', $companyId));
-        $historicIngresos  = (float) (clone $historicBase)->where('type', 'income')->sum('amount');
-        $historicEgresos   = (float) (clone $historicBase)->where('type', 'expense')->sum('amount');
-        $historicBalance   = $historicIngresos - $historicEgresos;
+        // KPIs históricos (sin filtro): caja + tesorería de toda la empresa
+        $histCashBase = fn() => CashMovement::whereHas('cashSession.cashRegister', fn($q) => $q->where('company_id', $companyId));
+        $historicIngresos = (float) $histCashBase()->where('type', 'income')->sum('amount')
+            + (float) TreasuryMovement::where('company_id', $companyId)->where('type', 'entrada')->sum('amount');
+        $historicEgresos  = (float) $histCashBase()->where('type', 'expense')->sum('amount')
+            + (float) TreasuryMovement::where('company_id', $companyId)->where('type', 'salida')->sum('amount');
+        $historicBalance  = $historicIngresos - $historicEgresos;
 
-        // "Por cobrar" count: pending sale installments
-        $porCobrarCount = SaleInstallment::whereHas('sale', function ($q) use ($companyId) {
-            $q->where('company_id', $companyId);
-        })->where('status', 'pendiente')->count();
+        // "Por cobrar" count: cuotas de venta pendientes
+        $porCobrarCount = SaleInstallment::whereHas('sale', fn($q) => $q->where('company_id', $companyId))
+            ->whereIn('status', ['pending', 'partial', 'overdue'])->count();
 
-        // "Por pagar" count: pending/overdue accounts payable
+        // "Por pagar" count: cuentas por pagar pendientes/vencidas
         $porPagarCount = AccountPayable::where('company_id', $companyId)
             ->whereIn('status', ['pendiente', 'pago_parcial', 'vencida'])
             ->count();
 
-        // Filter movements by tab
-        $movQuery = clone $baseQuery;
+        // Lista de movimientos (filtrada por sub-tab)
+        $listQuery = $buildLedger();
         if ($tab === 'ingresos') {
-            $movQuery->where('type', 'income');
+            $listQuery->where('type', 'income');
         } elseif ($tab === 'egresos') {
-            $movQuery->where('type', 'expense');
+            $listQuery->where('type', 'expense');
         }
+        $movements = $listQuery->orderByDesc('movement_date')->paginate(25)->withQueryString();
 
-        $movements = $movQuery->orderByDesc('movement_date')->orderByDesc('id')->paginate(25)->appends($request->query());
+        $ingresosCount = (int) $buildLedger()->where('type', 'income')->count();
+        $egresosCount  = (int) $buildLedger()->where('type', 'expense')->count();
 
-        $ingresosCount = (clone $baseQuery)->where('type', 'income')->count();
-        $egresosCount  = (clone $baseQuery)->where('type', 'expense')->count();
-
-        // Cash sessions for "Cierres de caja" sub-tab — all statuses (open + closed)
+        // Cash sessions for "Cierres de caja" sub-tab.
+        // Las sesiones ABIERTAS siempre se muestran (representan un cierre pendiente),
+        // sin importar el filtro de período. Las CERRADAS respetan el período.
         $cashSessions = CashSession::with(['cashRegister.branch', 'openedBy', 'closedBy'])
             ->whereHas('cashRegister', function ($q) use ($companyId, $branchId) {
                 $q->where('company_id', $companyId);
@@ -93,8 +114,15 @@ class MovimientoController extends Controller
                     $q->where('branch_id', $branchId);
                 }
             })
-            ->when($dateFrom, fn($q) => $q->whereDate('opened_at', '>=', $dateFrom))
-            ->when($dateTo, fn($q) => $q->whereDate('opened_at', '<=', $dateTo))
+            ->where(function ($q) use ($dateFrom, $dateTo) {
+                $q->where('status', 'open')
+                  ->orWhere(function ($q2) use ($dateFrom, $dateTo) {
+                      $q2->where('status', 'closed')
+                         ->when($dateFrom, fn($x) => $x->whereDate('opened_at', '>=', $dateFrom))
+                         ->when($dateTo, fn($x) => $x->whereDate('opened_at', '<=', $dateTo));
+                  });
+            })
+            ->orderByRaw("CASE WHEN status = 'open' THEN 0 ELSE 1 END")
             ->orderByDesc('opened_at')
             ->paginate(15);
 

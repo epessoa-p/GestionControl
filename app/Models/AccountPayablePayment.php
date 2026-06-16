@@ -11,6 +11,7 @@ class AccountPayablePayment extends Model
 
     protected $fillable = [
         'accounts_payable_id', 'amount', 'payment_date', 'payment_method', 'reference', 'notes', 'created_by',
+        'source', 'treasury_account_id', 'cash_session_id', 'cash_movement_id', 'treasury_movement_id',
     ];
 
     protected $casts = [
@@ -34,9 +35,16 @@ class AccountPayablePayment extends Model
         'otro'          => 'bi-three-dots',
     ];
 
+    const SOURCE_LABELS = ['caja' => 'Caja abierta', 'tesoreria' => 'Tesorería'];
+
     public function accountPayable(): BelongsTo
     {
         return $this->belongsTo(AccountPayable::class, 'accounts_payable_id');
+    }
+
+    public function treasuryAccount(): BelongsTo
+    {
+        return $this->belongsTo(TreasuryAccount::class, 'treasury_account_id');
     }
 
     public function createdBy(): BelongsTo

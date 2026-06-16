@@ -226,7 +226,7 @@ class PurchaseOrderController extends Controller
     {
         $this->authorizeRecord($purchaseOrder);
 
-        $allowed = ['aprobada', 'enviada', 'cancelada'];
+        $allowed = ['aprobada', 'cancelada'];
         $request->validate(['status' => 'required|in:' . implode(',', $allowed)]);
 
         if ($purchaseOrder->status === 'cancelada') {

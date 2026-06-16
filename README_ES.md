@@ -115,7 +115,7 @@ ControlGestion/
 ├── database/
 │   ├── migrations/
 │   ├── seeders/
-│   └── schema_cleanup_remove_loans.sql
+│   └── 20260416_171615_schema_cleanup_remove_loans.sql
 ├── resources/views/
 │   ├── layouts/
 │   ├── auth/

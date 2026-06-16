@@ -96,5 +96,5 @@ Este proyecto fue derivado de un sistema de préstamos. Se removió toda la lóg
 
 Para limpiar una base de datos existente del sistema anterior, ejecutar:
 ```sql
-source database/schema_cleanup_remove_loans.sql
+source database/20260416_171615_schema_cleanup_remove_loans.sql
 ```

@@ -44,7 +44,7 @@ class PurchaseReceptionController extends Controller
         $warehouses      = Warehouse::where('company_id', $companyId)->where('active', true)->orderBy('name')->get();
 
         $orders = PurchaseOrder::where('company_id', $companyId)
-            ->whereIn('status', ['aprobada', 'enviada', 'recibida_parcial'])
+            ->whereIn('status', ['aprobada', 'recibida_parcial'])
             ->with('supplier')
             ->orderBy('order_number')
             ->get();
@@ -121,7 +121,7 @@ class PurchaseReceptionController extends Controller
             'purchaseOrder.supplier', 'warehouse', 'createdBy',
             'items.product', 'items.purchaseOrderItem', 'accountPayable',
         ]);
-        return view('purchases.receptions.show', compact('purchaseReception'));
+        return view('purchases.receptions.show', ['reception' => $purchaseReception]);
     }
 
     public function confirm(PurchaseReception $purchaseReception)

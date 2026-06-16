@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS `purchase_orders` (
     `warehouse_id`          BIGINT UNSIGNED NOT NULL,
     `order_date`            DATE NOT NULL,
     `expected_date`         DATE NULL,
-    `status`                ENUM('borrador','aprobada','enviada','recibida_parcial','recibida','cancelada') NOT NULL DEFAULT 'borrador',
+    `status`                ENUM('borrador','aprobada','recibida_parcial','recibida','cancelada') NOT NULL DEFAULT 'borrador',
     `subtotal`              DECIMAL(14,2) NOT NULL DEFAULT 0,
     `tax`                   DECIMAL(14,2) NOT NULL DEFAULT 0,
     `discount`              DECIMAL(14,2) NOT NULL DEFAULT 0,

@@ -75,7 +75,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-bottom py-2 px-4 d-flex justify-content-between">
                     <h6 class="fw-bold mb-0"><i class="bi bi-box-arrow-in-down-right me-1 text-primary"></i> Recepciones</h6>
-                    @if(in_array($order->status, ['aprobada','enviada','recibida_parcial']))
+                    @if(in_array($order->status, ['aprobada','recibida_parcial']))
                     <a href="{{ route('purchases.receptions.create', ['order_id' => $order->id]) }}" class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-plus-lg me-1"></i> Registrar recepción
                     </a>
@@ -137,8 +137,7 @@
             @php
                 $transitions = [
                     'borrador'  => ['aprobada' => ['Aprobar', 'success'], 'cancelada' => ['Cancelar', 'danger']],
-                    'aprobada'  => ['enviada'  => ['Marcar enviada', 'primary'], 'cancelada' => ['Cancelar', 'warning']],
-                    'enviada'   => ['cancelada' => ['Cancelar', 'warning']],
+                    'aprobada'  => ['cancelada' => ['Cancelar', 'warning']],
                 ];
                 $avail = $transitions[$order->status] ?? [];
             @endphp
@@ -159,7 +158,7 @@
             @endif
 
             {{-- Registrar recepción shortcut --}}
-            @if(in_array($order->status, ['aprobada','enviada','recibida_parcial']))
+            @if(in_array($order->status, ['aprobada','recibida_parcial']))
             <a href="{{ route('purchases.receptions.create', ['order_id' => $order->id]) }}" class="btn btn-outline-success w-100 mb-2">
                 <i class="bi bi-box-arrow-in-down-right me-1"></i> Registrar recepción
             </a>

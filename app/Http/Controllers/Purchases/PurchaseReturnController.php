@@ -108,7 +108,7 @@ class PurchaseReturnController extends Controller
     {
         $this->authorizeRecord($purchaseReturn);
         $purchaseReturn->load(['supplier', 'reception.purchaseOrder', 'createdBy', 'items.product']);
-        return view('purchases.returns.show', compact('purchaseReturn'));
+        return view('purchases.returns.show', ['return' => $purchaseReturn]);
     }
 
     public function confirm(PurchaseReturn $purchaseReturn)

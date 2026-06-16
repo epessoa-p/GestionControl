@@ -121,7 +121,7 @@ class PurchaseQuotationController extends Controller
     {
         $this->authorizeRecord($purchaseQuotation);
         $purchaseQuotation->load(['supplier', 'purchaseRequest.items.product', 'items.product', 'createdBy', 'purchaseOrders']);
-        return view('purchases.quotations.show', compact('purchaseQuotation'));
+        return view('purchases.quotations.show', ['quotation' => $purchaseQuotation]);
     }
 
     public function updateStatus(Request $request, PurchaseQuotation $purchaseQuotation)

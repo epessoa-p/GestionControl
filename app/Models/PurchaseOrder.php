@@ -28,11 +28,10 @@ class PurchaseOrder extends Model
         'deleted_at'    => 'datetime',
     ];
 
-    const STATUSES = ['borrador', 'aprobada', 'enviada', 'recibida_parcial', 'recibida', 'cancelada'];
+    const STATUSES = ['borrador', 'aprobada', 'recibida_parcial', 'recibida', 'cancelada'];
     const STATUS_LABELS = [
         'borrador'          => 'Borrador',
         'aprobada'          => 'Aprobada',
-        'enviada'           => 'Enviada',
         'recibida_parcial'  => 'Recibida parcial',
         'recibida'          => 'Recibida',
         'cancelada'         => 'Cancelada',
@@ -40,7 +39,6 @@ class PurchaseOrder extends Model
     const STATUS_COLORS = [
         'borrador'          => 'secondary',
         'aprobada'          => 'success',
-        'enviada'           => 'info',
         'recibida_parcial'  => 'warning',
         'recibida'          => 'primary',
         'cancelada'         => 'danger',

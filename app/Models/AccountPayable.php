@@ -71,7 +71,7 @@ class AccountPayable extends Model
 
     public function payments(): HasMany
     {
-        return $this->hasMany(AccountPayablePayment::class);
+        return $this->hasMany(AccountPayablePayment::class, 'accounts_payable_id');
     }
 
     public static function generateApNumber(int $companyId): string

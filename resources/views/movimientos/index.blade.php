@@ -111,7 +111,7 @@
                         <div class="col-md-4">
                             <div class="d-flex align-items-center justify-content-between p-3 rounded-3 border border-success border-opacity-25">
                                 <div>
-                                    <div class="text-muted small">Ventas totales del período</div>
+                                    <div class="text-muted small">Ingresos totales del período</div>
                                     <div class="fs-4 fw-bold text-success">Bs. {{ number_format($totalIngresos, 2) }}</div>
                                 </div>
                                 <div class="rounded-2 bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="width:44px;height:44px">
@@ -123,7 +123,7 @@
                         <div class="col-md-4">
                             <div class="d-flex align-items-center justify-content-between p-3 rounded-3 border border-danger border-opacity-25">
                                 <div>
-                                    <div class="text-muted small">Gastos totales del período</div>
+                                    <div class="text-muted small">Egresos totales del período</div>
                                     <div class="fs-4 fw-bold text-danger">Bs. {{ number_format($totalEgresos, 2) }}</div>
                                 </div>
                                 <div class="rounded-2 bg-danger bg-opacity-10 d-flex align-items-center justify-content-center" style="width:44px;height:44px">
@@ -136,21 +136,28 @@
                 </div>
 
                 {{-- Sub-tabs: Ingresos / Egresos / Por cobrar / Por pagar --}}
-                <div class="card-header bg-white border-bottom px-4 py-0">
-                    <div class="d-flex align-items-center gap-1 py-2 flex-wrap">
-                        @php
-                        $subTabs = [
-                            'ingresos'   => ['label'=>'Ingresos',   'count'=>$ingresosCount,   'color'=>'success'],
-                            'egresos'    => ['label'=>'Egresos',    'count'=>$egresosCount,    'color'=>'danger'],
-                            'por_cobrar' => ['label'=>'Por cobrar', 'count'=>$porCobrarCount,  'color'=>'warning'],
-                            'por_pagar'  => ['label'=>'Por pagar',  'count'=>$porPagarCount,   'color'=>'info'],
-                        ];
-                        @endphp
+                @php
+                    $subTabs = [
+                        'ingresos'   => ['label'=>'Ingresos',   'count'=>$ingresosCount,  'hex'=>'#16a34a'],
+                        'egresos'    => ['label'=>'Egresos',    'count'=>$egresosCount,   'hex'=>'#dc2626'],
+                        'por_cobrar' => ['label'=>'Por cobrar', 'count'=>$porCobrarCount, 'hex'=>'#d97706'],
+                        'por_pagar'  => ['label'=>'Por pagar',  'count'=>$porPagarCount,  'hex'=>'#2563eb'],
+                    ];
+                @endphp
+                <div class="border-bottom px-4 py-2" style="background:#f4f5f7;">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                         @foreach($subTabs as $key => $info)
+                        @php $isActive = $tab === $key; @endphp
                         <a href="{{ request()->fullUrlWithQuery(['tab' => $key, 'page' => null]) }}"
-                           class="btn btn-sm {{ $tab === $key ? 'btn-'.$info['color'] : 'btn-outline-secondary' }} rounded-pill">
+                           class="btn btn-sm rounded-pill d-inline-flex align-items-center gap-2 fw-semibold border {{ $isActive ? 'text-white shadow-sm' : 'bg-white' }}"
+                           style="{{ $isActive
+                               ? 'background-color:'.$info['hex'].';border-color:'.$info['hex'].';'
+                               : 'color:'.$info['hex'].';border-color:'.$info['hex'].'66;' }}">
                             {{ $info['label'] }}
-                            <span class="badge {{ $tab === $key ? 'bg-white text-'.$info['color'] : 'bg-secondary' }} ms-1">{{ $info['count'] }}</span>
+                            <span class="badge rounded-pill"
+                                  style="{{ $isActive
+                                      ? 'background:#fff;color:'.$info['hex'].';'
+                                      : 'background:'.$info['hex'].';color:#fff;' }}">{{ $info['count'] }}</span>
                         </a>
                         @endforeach
                     </div>
@@ -177,7 +184,7 @@
                                 <th>Concepto</th>
                                 <th class="text-end">Valor</th>
                                 <th>Medio de pago</th>
-                                <th>Caja / Sucursal</th>
+                                <th>Origen</th>
                                 <th>Fecha y hora</th>
                             </tr>
                         </thead>
@@ -185,8 +192,12 @@
                             @forelse($movements as $mov)
                             @php
                                 $isIncome = $mov->type === 'income';
-                                $catLabel = \App\Models\CashMovement::CATEGORIES[$mov->category]['label'] ?? $mov->category;
-                                $pmLabel  = \App\Models\CashMovement::PAYMENT_LABELS[$mov->payment_method]  ?? $mov->payment_method;
+                                $catLabel = $mov->origin_type === 'tesoreria'
+                                    ? (\App\Models\TreasuryMovement::CATEGORIES[$mov->category]['label'] ?? $mov->category)
+                                    : (\App\Models\CashMovement::CATEGORIES[$mov->category]['label'] ?? $mov->category);
+                                $pmLabel  = $mov->payment_method
+                                    ? (\App\Models\CashMovement::PAYMENT_LABELS[$mov->payment_method] ?? $mov->payment_method)
+                                    : '—';
                             @endphp
                             <tr>
                                 <td>
@@ -205,12 +216,17 @@
                                 </td>
                                 <td class="text-muted small">{{ $pmLabel }}</td>
                                 <td class="text-muted small">
-                                    {{ $mov->cashSession?->cashRegister?->name ?? '—' }}
-                                    @if($mov->cashSession?->cashRegister?->branch)
-                                    <div style="font-size:.7rem">{{ $mov->cashSession->cashRegister->branch->name }}</div>
+                                    @if($mov->origin_type === 'tesoreria')
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle"><i class="bi bi-bank me-1"></i>Tesorería</span>
+                                        <div style="font-size:.7rem">{{ $mov->origin_name }}</div>
+                                    @else
+                                        {{ $mov->origin_name ?? '—' }}
+                                        @if($mov->origin_branch)
+                                        <div style="font-size:.7rem">{{ $mov->origin_branch }}</div>
+                                        @endif
                                     @endif
                                 </td>
-                                <td class="text-muted small">{{ $mov->movement_date?->format('d/m/Y H:i') }}</td>
+                                <td class="text-muted small">{{ \Carbon\Carbon::parse($mov->movement_date)->format('d/m/Y H:i') }}</td>
                             </tr>
                             @empty
                             <tr>
@@ -259,15 +275,18 @@
                                 $isOpen = $session->status === 'open';
                                 $diff   = $isOpen ? null : (float)($session->difference ?? 0);
                             @endphp
-                            <tr class="{{ $isOpen ? 'table-success' : '' }}">
+                            <tr class="{{ $isOpen ? 'table-warning' : '' }}">
                                 <td>
                                     @if($isOpen)
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                        <i class="bi bi-circle-fill me-1" style="font-size:.45rem"></i>Abierta
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-unlock-fill me-1"></i>Abierta
                                     </span>
+                                    <div class="text-warning-emphasis fw-semibold" style="font-size:.66rem">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Cierre pendiente
+                                    </div>
                                     @else
-                                    <span class="badge bg-secondary-subtle text-secondary">
-                                        <i class="bi bi-lock me-1"></i>Cerrada
+                                    <span class="badge bg-secondary-subtle text-secondary border">
+                                        <i class="bi bi-lock-fill me-1"></i>Cerrada
                                     </span>
                                     @endif
                                 </td>
