@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\CashMovement;
 use App\Models\CashSession;
 use App\Models\SaleInstallment;
+use App\Models\TreasuryAccount;
 use App\Models\TreasuryMovement;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -25,20 +26,50 @@ class MovimientoController extends Controller
 
     public function index(Request $request)
     {
-        $companyId = $this->getCompanyId();
-        $branchId  = $request->branch_id;
-        $period    = $request->period ?? 'mes';
-        $dateFrom  = $request->date_from;
-        $dateTo    = $request->date_to;
-        $tab       = $request->tab ?? 'todos';
+        $companyId          = $this->getCompanyId();
+        $branchId           = $request->branch_id;
+        $treasuryAccountId  = $request->treasury_account_id;
+        $period             = $request->period ?? 'mes';
+        $dateFrom           = $request->date_from;
+        $dateTo             = $request->date_to;
+        $tab                = $request->tab ?? 'todos';
+
+        // Sucursal y cuenta de tesorería son mutuamente excluyentes como filtro de origen.
+        if ($treasuryAccountId) {
+            $branchId = null;
+        }
 
         [$dateFrom, $dateTo] = $this->resolveDateRange($period, $dateFrom, $dateTo);
 
-        $branches = Branch::where('company_id', $companyId)->orderBy('name')->get();
+        $branches         = Branch::where('company_id', $companyId)->orderBy('name')->get();
+        $treasuryAccounts = TreasuryAccount::where('company_id', $companyId)
+            ->where('active', true)->orderBy('name')->get();
 
         // ── Ledger unificado: caja (cash_movements) + tesorería (treasury_movements) ──
-        // Con filtro de sucursal solo aplica caja (tesorería es a nivel empresa).
-        $buildLedger = function () use ($companyId, $branchId, $dateFrom, $dateTo) {
+        // - Filtro por cuenta de tesorería → solo esa cuenta.
+        // - Filtro por sucursal → solo caja de esa sucursal.
+        // - Sin filtro → caja (todas) + tesorería (todas).
+        $treasurySub = function () use ($companyId, $treasuryAccountId, $dateFrom, $dateTo) {
+            return DB::table('treasury_movements as tm')
+                ->join('treasury_accounts as ta', 'ta.id', '=', 'tm.treasury_account_id')
+                ->where('tm.company_id', $companyId)
+                ->whereNull('tm.deleted_at')
+                ->when($treasuryAccountId, fn($q) => $q->where('tm.treasury_account_id', $treasuryAccountId))
+                ->when($dateFrom, fn($q) => $q->whereDate('tm.movement_date', '>=', $dateFrom))
+                ->when($dateTo, fn($q) => $q->whereDate('tm.movement_date', '<=', $dateTo))
+                ->selectRaw("'tesoreria' as origin_type,
+                    CASE WHEN tm.type = 'entrada' THEN 'income' ELSE 'expense' END as type,
+                    tm.category as category, tm.description as concept,
+                    NULL as payment_method, tm.amount as amount, tm.movement_date as movement_date,
+                    ta.name as origin_name, NULL as origin_branch");
+        };
+
+        $buildLedger = function () use ($companyId, $branchId, $treasuryAccountId, $dateFrom, $dateTo, $treasurySub) {
+            // Solo tesorería de la cuenta seleccionada
+            if ($treasuryAccountId) {
+                return DB::query()->fromSub($treasurySub(), 'm');
+            }
+
             $cash = DB::table('cash_movements as cm')
                 ->join('cash_sessions as cs', 'cs.id', '=', 'cm.cash_session_id')
                 ->join('cash_registers as cr', 'cr.id', '=', 'cs.cash_register_id')
@@ -52,19 +83,9 @@ class MovimientoController extends Controller
                     cm.payment_method as payment_method, cm.amount as amount, cm.movement_date as movement_date,
                     cr.name as origin_name, b.name as origin_branch");
 
+            // Sin filtro de sucursal → agregar tesorería (todas las cuentas)
             if (!$branchId) {
-                $treasury = DB::table('treasury_movements as tm')
-                    ->join('treasury_accounts as ta', 'ta.id', '=', 'tm.treasury_account_id')
-                    ->where('tm.company_id', $companyId)
-                    ->whereNull('tm.deleted_at')
-                    ->when($dateFrom, fn($q) => $q->whereDate('tm.movement_date', '>=', $dateFrom))
-                    ->when($dateTo, fn($q) => $q->whereDate('tm.movement_date', '<=', $dateTo))
-                    ->selectRaw("'tesoreria' as origin_type,
-                        CASE WHEN tm.type = 'entrada' THEN 'income' ELSE 'expense' END as type,
-                        tm.category as category, tm.description as concept,
-                        NULL as payment_method, tm.amount as amount, tm.movement_date as movement_date,
-                        ta.name as origin_name, NULL as origin_branch");
-                $cash->unionAll($treasury);
+                $cash->unionAll($treasurySub());
             }
 
             return DB::query()->fromSub($cash, 'm');
@@ -129,6 +150,7 @@ class MovimientoController extends Controller
         return view('movimientos.index', compact(
             'movements', 'cashSessions',
             'branches', 'branchId',
+            'treasuryAccounts', 'treasuryAccountId',
             'period', 'dateFrom', 'dateTo', 'tab',
             'totalIngresos', 'totalEgresos', 'balance',
             'historicIngresos', 'historicEgresos', 'historicBalance',

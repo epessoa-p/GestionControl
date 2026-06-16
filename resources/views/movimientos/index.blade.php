@@ -32,14 +32,15 @@
         </div>
     </div>
 
-    {{-- Branch chips --}}
-    <div class="d-flex gap-2 flex-wrap mb-2">
-        <a href="{{ request()->fullUrlWithQuery(['branch_id' => null, 'page' => null]) }}"
-           class="btn btn-sm {{ !$branchId ? 'btn-dark' : 'btn-outline-secondary' }} rounded-pill">
+    {{-- Branch chips (caja por sucursal) --}}
+    <div class="d-flex gap-2 flex-wrap mb-2 align-items-center">
+        <span class="text-muted small fw-semibold me-1"><i class="bi bi-shop me-1"></i>Sucursal:</span>
+        <a href="{{ request()->fullUrlWithQuery(['branch_id' => null, 'treasury_account_id' => null, 'page' => null]) }}"
+           class="btn btn-sm {{ !$branchId && !$treasuryAccountId ? 'btn-dark' : 'btn-outline-secondary' }} rounded-pill">
             <i class="bi bi-grid me-1"></i>Todas
         </a>
         @foreach($branches as $branch)
-        <a href="{{ request()->fullUrlWithQuery(['branch_id' => $branch->id, 'page' => null]) }}"
+        <a href="{{ request()->fullUrlWithQuery(['branch_id' => $branch->id, 'treasury_account_id' => null, 'page' => null]) }}"
            class="btn btn-sm {{ $branchId == $branch->id ? 'btn-dark' : 'btn-outline-secondary' }} rounded-pill">
             <span class="me-1" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a"></span>
             {{ $branch->name }}
@@ -47,9 +48,23 @@
         @endforeach
     </div>
 
+    {{-- Treasury account chips (tesorería por cuenta) --}}
+    @if($treasuryAccounts->isNotEmpty())
+    <div class="d-flex gap-2 flex-wrap mb-2 align-items-center">
+        <span class="text-muted small fw-semibold me-1"><i class="bi bi-bank me-1"></i>Tesorería:</span>
+        @foreach($treasuryAccounts as $acc)
+        <a href="{{ request()->fullUrlWithQuery(['treasury_account_id' => $acc->id, 'branch_id' => null, 'page' => null]) }}"
+           class="btn btn-sm {{ $treasuryAccountId == $acc->id ? 'btn-info text-white' : 'btn-outline-info' }} rounded-pill">
+            {{ $acc->name }}
+        </a>
+        @endforeach
+    </div>
+    @endif
+
     {{-- Period filter --}}
     <form method="GET" class="mb-3">
         <input type="hidden" name="branch_id" value="{{ $branchId }}">
+        <input type="hidden" name="treasury_account_id" value="{{ $treasuryAccountId }}">
         <div class="d-flex gap-2 flex-wrap align-items-center">
             @foreach(['dia' => 'Día', 'semana' => 'Semana', 'mes' => 'Mes', 'todo' => 'Todo', 'rango' => 'Rango'] as $key => $label)
             <a href="{{ request()->fullUrlWithQuery(['period' => $key, 'page' => null]) }}"
