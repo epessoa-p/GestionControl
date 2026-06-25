@@ -8,8 +8,18 @@
 <div class="view-compact container-fluid" id="posApp">
 
     <div class="d-flex justify-content-between align-items-center mb-2 page-head">
-        <div>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
             <h1 class="mb-0"><i class="bi bi-upc-scan text-success me-2"></i>Punto de venta</h1>
+            @if($session)
+            <div class="d-flex gap-2 flex-wrap">
+                <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 py-2 px-2">
+                    <i class="bi bi-shop text-primary"></i> Sucursal: <strong>{{ $branch?->name ?? '—' }}</strong>
+                </span>
+                <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 py-2 px-2">
+                    <i class="bi bi-box-seam text-success"></i> Almacén: <strong>{{ $warehouse?->name ?? '—' }}</strong>
+                </span>
+            </div>
+            @endif
         </div>
         <div class="d-flex align-items-center gap-2">
             @if($session)
@@ -21,6 +31,9 @@
         </div>
     </div>
 
+    @if(!$session)
+        @include('sales._no_cash_alert')
+    @else
     <form action="{{ route('pos.store') }}" method="POST" id="posForm">
         @csrf
         <div class="row g-3">
@@ -33,11 +46,11 @@
                             @foreach($products as $p)
                                 <div class="col-6 col-md-4 prod-cell" data-name="{{ strtolower($p->name) }}" data-sku="{{ strtolower($p->sku) }}">
                                     <button type="button" class="prod-card w-100 text-start"
-                                            data-id="{{ $p->id }}" data-pname="{{ $p->name }}" data-price="{{ $p->price }}" data-stock="{{ $p->current_stock }}">
+                                            data-id="{{ $p->id }}" data-pname="{{ $p->name }}" data-price="{{ $p->price }}" data-stock="{{ $p->wh_stock }}">
                                         <div class="fw-semibold text-truncate">{{ $p->name }}</div>
                                         <div class="d-flex justify-content-between align-items-center mt-1">
                                             <span class="text-success fw-bold">${{ number_format($p->price, 2) }}</span>
-                                            <span class="badge bg-light text-secondary border">{{ number_format($p->current_stock, 0) }} {{ $p->unit }}</span>
+                                            <span class="badge {{ $p->wh_stock > 0 ? 'bg-light text-secondary' : 'bg-danger-subtle text-danger' }} border">{{ number_format($p->wh_stock, 0) }} {{ $p->unit }}</span>
                                         </div>
                                     </button>
                                 </div>
@@ -51,7 +64,7 @@
             <div class="col-lg-5">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
-                        {{-- Cliente / meta --}}
+                        {{-- Cliente / origen (sucursal + almacén tomados de la caja) --}}
                         <div class="row g-2 mb-2">
                             <div class="col-12">
                                 <label class="form-label">Cliente</label>
@@ -62,20 +75,11 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-6">
-                                <label class="form-label">Sucursal</label>
-                                <select name="branch_id" class="form-select form-select-sm">
-                                    <option value="">—</option>
-                                    @foreach($branches as $b)<option value="{{ $b->id }}">{{ $b->name }}</option>@endforeach
-                                </select>
+                            @unless($warehouse)
+                            <div class="col-12">
+                                <div class="form-text text-warning"><i class="bi bi-exclamation-triangle me-1"></i>La sucursal de tu caja no tiene un almacén configurado; el stock no se descontará por almacén.</div>
                             </div>
-                            <div class="col-6">
-                                <label class="form-label">Almacén</label>
-                                <select name="warehouse_id" class="form-select form-select-sm">
-                                    <option value="">—</option>
-                                    @foreach($warehouses as $w)<option value="{{ $w->id }}">{{ $w->name }}</option>@endforeach
-                                </select>
-                            </div>
+                            @endunless
                         </div>
 
                         <div class="table-responsive mb-2" style="max-height:32vh;overflow-y:auto;">
@@ -121,6 +125,7 @@
             </div>
         </div>
     </form>
+    @endif
 </div>
 
 @push('styles')
@@ -134,9 +139,11 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const cart = new Map();
     const cartBody  = document.getElementById('cartBody');
     const cartEmpty = document.getElementById('cartEmpty');
+    if (!cartBody) return; // Sin caja abierta el formulario no se renderiza.
+
+    const cart = new Map();
     const fmt = n => '$' + n.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     function render() {

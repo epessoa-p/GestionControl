@@ -135,10 +135,10 @@
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item cash-dd-action py-2 px-3 mb-1" href="{{ route('cash-sessions.show', $navCashSession) }}#cerrar">
+                                        <button type="button" class="dropdown-item cash-dd-action py-2 px-3 mb-1" data-bs-toggle="modal" data-bs-target="#navCloseCashModal">
                                             <span class="cash-dd-action-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-lock"></i></span>
                                             <span class="text-danger">Cerrar caja</span>
-                                        </a>
+                                        </button>
                                     </li>
                                 </ul>
                             </div>
@@ -278,6 +278,69 @@
                     <button type="button" class="btn btn-light border flex-fill" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-cash-submit flex-fill">
                         <i class="bi bi-unlock me-1"></i> Abrir caja
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- ── Modal: Cierre de caja ────────────────────────────────────────────────── --}}
+@if(isset($navCashSession) && $navCashSession)
+@php $navExpected = (float) $navCashSession->calculateExpectedAmount(); @endphp
+<div class="modal fade" id="navCloseCashModal" tabindex="-1" aria-labelledby="navCloseCashModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+
+            <div class="modal-cash-header d-flex align-items-center gap-3 px-4 py-4">
+                <div class="modal-cash-icon"><i class="bi bi-lock"></i></div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-white">Cierre de caja</h5>
+                    <small class="text-white-50">{{ $navCashSession->cashRegister?->name }}
+                        @if($navCashSession->cashRegister?->branch) · {{ $navCashSession->cashRegister->branch->name }} @endif
+                    </small>
+                </div>
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form action="{{ route('cash-sessions.close', $navCashSession) }}" method="POST">
+                @csrf
+                <div class="modal-body px-4 pt-4 pb-3">
+
+                    <div class="d-flex justify-content-between align-items-center mb-3 px-1">
+                        <span class="text-muted small">Saldo esperado en caja</span>
+                        <span class="fw-bold" id="navExpectedLabel">$ {{ number_format($navExpected, 2) }}</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark">Monto contado <span class="text-danger">*</span></label>
+                        <div class="modal-cash-amount-wrap">
+                            <span class="modal-cash-currency">$</span>
+                            <input type="number" name="closing_amount" id="navCloseAmount"
+                                   class="modal-cash-amount-input" value="" min="0" step="0.01"
+                                   placeholder="0.00" required autocomplete="off"
+                                   data-expected="{{ $navExpected }}">
+                        </div>
+                        <div class="d-flex justify-content-between mt-2 px-1">
+                            <small class="text-muted">Dinero físico contado al cierre.</small>
+                            <small id="navDiffLabel" class="fw-semibold"></small>
+                        </div>
+                    </div>
+
+                    <div class="mb-1">
+                        <label class="form-label fw-semibold text-dark d-flex align-items-center gap-2">
+                            Notas <span class="badge bg-light text-muted fw-normal">Opcional</span>
+                        </label>
+                        <textarea name="closing_notes" class="form-control border-0 bg-light" rows="2"
+                                  placeholder="Observaciones del cierre..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex gap-2">
+                    <button type="button" class="btn btn-light border flex-fill" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger flex-fill">
+                        <i class="bi bi-lock me-1"></i> Cerrar caja
                     </button>
                 </div>
             </form>
@@ -759,6 +822,26 @@
                 var amountInput = document.getElementById('navOpenAmount');
                 if (amountInput) { amountInput.focus(); amountInput.select(); }
             });
+        }
+
+        // Modal cierre de caja: focus + diferencia en vivo (contado - esperado)
+        var closeModal = document.getElementById('navCloseCashModal');
+        if (closeModal) {
+            var closeAmount = document.getElementById('navCloseAmount');
+            var diffLabel   = document.getElementById('navDiffLabel');
+            var expected    = parseFloat(closeAmount?.dataset.expected) || 0;
+            var fmt = function (n) { return '$ ' + n.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+            function renderDiff() {
+                if (!closeAmount.value) { diffLabel.textContent = ''; return; }
+                var diff = (parseFloat(closeAmount.value) || 0) - expected;
+                var txt = (diff > 0 ? '+' : '') + fmt(diff) + (diff === 0 ? ' · cuadra' : (diff < 0 ? ' · faltante' : ' · sobrante'));
+                diffLabel.textContent = txt;
+                diffLabel.className = 'fw-semibold ' + (diff === 0 ? 'text-success' : (diff < 0 ? 'text-danger' : 'text-warning'));
+            }
+            closeModal.addEventListener('shown.bs.modal', function () {
+                if (closeAmount) { closeAmount.focus(); }
+            });
+            closeAmount?.addEventListener('input', renderDiff);
         }
 
         // Sidebar accordion: restaurar estado localStorage para secciones no activas

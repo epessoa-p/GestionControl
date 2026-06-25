@@ -1,12 +1,26 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="mb-1"><i class="bi bi-cart3 text-primary me-2"></i>Nueva venta</h1>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <h1 class="mb-0"><i class="bi bi-cart3 text-primary me-2"></i>Nueva venta</h1>
+            @if(!empty($openSession))
+            <div class="d-flex gap-2 flex-wrap">
+                <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 py-2 px-2">
+                    <i class="bi bi-shop text-primary"></i> {{ $branch?->name ?? '—' }}
+                </span>
+                <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 py-2 px-2">
+                    <i class="bi bi-box-seam text-success"></i> {{ $warehouse?->name ?? '—' }}
+                </span>
+            </div>
+            @else
             <p class="text-muted mb-0">Registra una nueva venta con detalle de productos</p>
+            @endif
         </div>
         <a href="{{ route('sales.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Volver</a>
     </div>
 
+    @if(empty($openSession))
+        @include('sales._no_cash_alert')
+    @else
     <div class="card border-0 shadow-sm">
         <div class="card-body p-4">
             <form action="{{ $action }}" method="POST" id="saleForm">
@@ -102,7 +116,7 @@
                 </div>
 
                 {{-- ── MODO: Cliente registrado ── --}}
-                <div id="clientRegisteredSection"{{ $oldClientMode === 'quick' ? ' style="display:none;"' : '' }}>
+                <div id="clientRegisteredSection" @if($oldClientMode === 'quick') style="display:none;" @endif>
                     <div class="row g-3 mb-2">
                         <div class="col-md-7 col-lg-6">
                             <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.04em;">Buscar cliente en el CRM</label>
@@ -170,7 +184,7 @@
                 </div>
 
                 {{-- ── MODO: Venta rápida ── --}}
-                <div id="clientQuickSection"{{ $oldClientMode !== 'quick' ? ' style="display:none;"' : '' }}>
+                <div id="clientQuickSection" @if($oldClientMode !== 'quick') style="display:none;" @endif>
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label fw-semibold small">Nombre del cliente</label>
@@ -203,43 +217,10 @@
                 <hr class="my-3">
 
                 {{-- Configuración de la venta --}}
+                @unless($warehouse)
+                    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>La sucursal de tu caja no tiene un almacén configurado.</div>
+                @endunless
                 <div class="row g-3 mb-4">
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Sucursal</label>
-                        <select name="branch_id" id="branchSelect" class="form-select">
-                            <option value="">—</option>
-                            @foreach($branches as $b)
-                                <option value="{{ $b->id }}"
-                                        data-warehouse="{{ $b->warehouse_id }}"
-                                        {{ (string)old('branch_id') === (string)$b->id ? 'selected' : '' }}>
-                                    {{ $b->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Almacén</label>
-                        <select name="warehouse_id" id="warehouseSelect" class="form-select">
-                            <option value="">—</option>
-                            @foreach($warehouses as $w)
-                                <option value="{{ $w->id }}" {{ (string)old('warehouse_id') === (string)$w->id ? 'selected' : '' }}>{{ $w->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Impuesto</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" min="0" name="tax" class="form-control" value="{{ old('tax', 0) }}" id="taxInput">
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Descuento general</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" min="0" name="discount" class="form-control" value="{{ old('discount', 0) }}" id="discountInput">
-                        </div>
-                    </div>
                     <div class="col-12">
                         <label class="form-label fw-semibold">Notas</label>
                         <textarea name="notes" class="form-control" rows="2" placeholder="Observaciones de la venta...">{{ old('notes') }}</textarea>
@@ -265,7 +246,7 @@
                             <select name="items[0][product_id]" class="form-select form-select-sm prod-sel" required>
                                 <option value="">Producto...</option>
                                 @foreach($products as $p)
-                                    <option value="{{ $p->id }}" data-price="{{ $p->price }}" data-stock="{{ $p->current_stock }}">{{ $p->name }} (Stock: {{ $p->current_stock }})</option>
+                                    <option value="{{ $p->id }}" data-price="{{ $p->price }}" data-stock="{{ $p->wh_stock }}">{{ $p->name }} (Stock: {{ number_format($p->wh_stock, 0) }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -292,10 +273,26 @@
                     <div class="col-md-4">
                         <div class="card bg-light border-0">
                             <div class="card-body py-2 px-3">
-                                <table class="table table-sm table-borderless mb-0">
+                                <table class="table table-sm table-borderless align-middle mb-0">
                                     <tr><td class="text-muted">Subtotal:</td><td class="text-end fw-semibold" id="subtotalDisplay">$0.00</td></tr>
-                                    <tr><td class="text-muted">Impuesto:</td><td class="text-end" id="taxDisplay">$0.00</td></tr>
-                                    <tr><td class="text-muted">Descuento:</td><td class="text-end" id="discountDisplay">$0.00</td></tr>
+                                    <tr>
+                                        <td class="text-muted">Impuesto:</td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" step="0.01" min="0" name="tax" class="form-control text-end" value="{{ old('tax', 0) }}" id="taxInput">
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Descuento:</td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" step="0.01" min="0" name="discount" class="form-control text-end" value="{{ old('discount', 0) }}" id="discountInput">
+                                            </div>
+                                        </td>
+                                    </tr>
                                     <tr class="border-top"><td class="fw-bold">Total:</td><td class="text-end fw-bold text-primary fs-5" id="totalDisplay">$0.00</td></tr>
                                 </table>
                             </div>
@@ -373,6 +370,7 @@
             </form>
         </div>
     </div>
+    @endif
 </div>
 
 @push('styles')
@@ -396,6 +394,7 @@
 </style>
 @endpush
 
+@if(!empty($openSession))
 @push('scripts')
 <script>
     let itemIndex = 1;
@@ -441,8 +440,6 @@
         const tax = parseFloat(document.getElementById('taxInput').value) || 0;
         const discount = parseFloat(document.getElementById('discountInput').value) || 0;
         document.getElementById('subtotalDisplay').textContent = '$' + subtotal.toFixed(2);
-        document.getElementById('taxDisplay').textContent = '$' + tax.toFixed(2);
-        document.getElementById('discountDisplay').textContent = '$' + discount.toFixed(2);
         document.getElementById('totalDisplay').textContent = '$' + (subtotal + tax - discount).toFixed(2);
     }
 
@@ -752,25 +749,6 @@
         }
     }, true); // capture: true → fires before the validation listener
 
-    // ─── Branch → Warehouse auto-select ────────────────────────────────────
-    (function () {
-        const branchSel   = document.getElementById('branchSelect');
-        const warehouseSel = document.getElementById('warehouseSelect');
-
-        function applyWarehouse(force) {
-            const opt = branchSel.options[branchSel.selectedIndex];
-            const wId = opt?.dataset?.warehouse;
-            if (wId && (force || !warehouseSel.value)) {
-                warehouseSel.value = wId;
-            }
-        }
-
-        branchSel.addEventListener('change', () => applyWarehouse(true));
-
-        // On page load: auto-select only if warehouse not already chosen (e.g. old())
-        applyWarehouse(false);
-    })();
-
     // ─── Form validation ───
     document.getElementById('saleForm').addEventListener('submit', function(e) {
         const type = document.getElementById('saleTypeInput').value;
@@ -792,3 +770,4 @@
     });
 </script>
 @endpush
+@endif

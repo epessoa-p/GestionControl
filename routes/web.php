@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CargoController;
 use App\Http\Controllers\Admin\PersonalController;
 use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\Admin\MeasurementUnitController;
+use App\Http\Controllers\Admin\SystemResetController;
 use App\Http\Controllers\DocumentTemplates\DocumentTemplateController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\DepartureController;
@@ -56,6 +57,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/{company}/edit', [CompanyController::class, 'edit'])->name('edit');
         Route::put('/{company}', [CompanyController::class, 'update'])->name('update');
         Route::delete('/{company}', [CompanyController::class, 'destroy'])->name('destroy');
+    });
+
+    // Reinicio de datos del sistema (Super Admin)
+    Route::middleware('check-role:super_admin')->prefix('admin/system-reset')->name('system-reset.')->group(function () {
+        Route::get('/', [SystemResetController::class, 'index'])->name('index');
+        Route::post('/', [SystemResetController::class, 'reset'])->name('run');
     });
 
     // User Management

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\InteractsWithCashSession;
 use App\Models\Branch;
 use App\Models\Commission;
 use App\Models\Product;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Log;
 
 class SaleController extends Controller
 {
+    use InteractsWithCashSession;
+
     public function index(Request $request)
     {
         $user = auth()->user();
@@ -33,30 +36,50 @@ class SaleController extends Controller
 
         $companyId = $this->getCompanyId();
 
+        $assignedRegister = $this->userCashRegister($companyId);
+
         return view('sales.index', [
             'sales' => $query->paginate(15)->withQueryString(),
             'promoters' => Promoter::where('company_id', $companyId)->orderBy('name')->get(),
             'filters' => $request->only(['status', 'promoter_id', 'from', 'to']),
+            'openSession' => $assignedRegister?->activeSession(),
+            'assignedRegister' => $assignedRegister,
         ]);
     }
 
     public function create()
     {
         $companyId = $this->getCompanyId();
+        $assignedRegister = $this->userCashRegister($companyId);
+        $assignedRegister?->load('branch.warehouse');
+        $branch    = $assignedRegister?->branch;
+        $warehouse = $branch?->warehouse;
+
+        $products = Product::where('company_id', $companyId)->where('active', true)->orderBy('name')->get();
+        $whStocks = $warehouse ? StockService::warehouseStocks($warehouse->id, $products) : [];
+        $products->each(fn($p) => $p->wh_stock = $warehouse ? (float) ($whStocks[$p->id] ?? 0) : (float) $p->current_stock);
+
         return view('sales.create', [
             'sale' => null,
-            'products' => Product::where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
+            'products' => $products,
             'promoters' => Promoter::where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
-            'branches' => Branch::where('company_id', $companyId)->orderBy('name')->get(),
-            'warehouses' => Warehouse::where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'nextNumber' => Sale::generateNumber($companyId),
             'action' => route('sales.store'),
             'method' => 'POST',
+            'openSession' => $assignedRegister?->activeSession(),
+            'assignedRegister' => $assignedRegister,
+            'branch' => $branch,
+            'warehouse' => $warehouse,
         ]);
     }
 
     public function store(Request $request)
     {
+        // Una venta requiere que el usuario logueado tenga su caja abierta.
+        if (!$this->userOpenSession($this->getCompanyId())) {
+            return back()->withInput()->with('error', 'Debes abrir tu caja antes de registrar una venta.');
+        }
+
         try {
             $validated = $request->validate([
                 'sale_date' => 'required|date',
@@ -66,8 +89,6 @@ class SaleController extends Controller
                 'client_phone' => 'nullable|string|max:50',
                 'client_document' => 'nullable|string|max:50',
                 'promoter_id' => 'nullable|exists:promoters,id',
-                'branch_id' => 'nullable|exists:branches,id',
-                'warehouse_id' => 'nullable|exists:warehouses,id',
                 'payment_method' => 'required|in:cash,card,transfer,credit,other',
                 'sale_type' => 'required|in:cash,credit',
                 'tax' => 'nullable|numeric|min:0',
@@ -86,7 +107,13 @@ class SaleController extends Controller
 
             $companyId = $this->getCompanyId();
 
-            DB::transaction(function () use ($validated, $companyId) {
+            // Sucursal y almacén se toman de la caja del cajero (no del formulario).
+            $register    = $this->userCashRegister($companyId);
+            $register?->load('branch');
+            $branchId    = $register?->branch_id;
+            $warehouseId = $register?->branch?->warehouse_id;
+
+            DB::transaction(function () use ($validated, $companyId, $branchId, $warehouseId) {
                 $subtotal = 0;
                 foreach ($validated['items'] as $item) {
                     $lineDiscount = $item['discount'] ?? 0;
@@ -119,8 +146,8 @@ class SaleController extends Controller
                     'client_phone' => $clientPhone,
                     'client_document' => $clientDocument,
                     'promoter_id' => $validated['promoter_id'] ?? null,
-                    'branch_id' => $validated['branch_id'] ?? null,
-                    'warehouse_id' => $validated['warehouse_id'] ?? null,
+                    'branch_id' => $branchId,
+                    'warehouse_id' => $warehouseId,
                     'payment_method' => $validated['payment_method'],
                     'sale_type' => $validated['sale_type'] ?? 'cash',
                     'subtotal' => $subtotal,

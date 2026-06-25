@@ -2,14 +2,12 @@
 
 namespace App\Http\Controllers\Sales;
 
+use App\Http\Controllers\Concerns\InteractsWithCashSession;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\CashMovement;
-use App\Models\CashRegister;
-use App\Models\CashSession;
 use App\Models\Client;
 use App\Models\Commission;
-use App\Models\Personal;
 use App\Models\Product;
 use App\Models\Promoter;
 use App\Models\Sale;
@@ -22,9 +20,18 @@ use Illuminate\Support\Facades\Log;
 
 class PosController extends Controller
 {
+    use InteractsWithCashSession;
+
     public function index()
     {
         $companyId = $this->getCompanyId();
+
+        $assignedRegister = $this->userCashRegister($companyId);
+        $session          = $assignedRegister?->activeSession();
+        $session?->load('cashRegister.branch.warehouse');
+
+        $branch    = $session?->cashRegister?->branch;
+        $warehouse = $branch?->warehouse;
 
         $products = Product::where('company_id', $companyId)
             ->where('active', true)
@@ -32,16 +39,19 @@ class PosController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'sku', 'price', 'current_stock', 'unit']);
 
-        $session = $this->activeSession($companyId);
+        // Stock del almacén ligado a la sucursal de la caja.
+        $whStocks = $warehouse ? StockService::warehouseStocks($warehouse->id, $products) : [];
+        $products->each(fn($p) => $p->wh_stock = $warehouse ? (float) ($whStocks[$p->id] ?? 0) : (float) $p->current_stock);
 
         return view('sales.pos.index', [
-            'products'    => $products,
-            'clients'     => Client::where('company_id', $companyId)->orderBy('name')->get(),
-            'promoters'   => Promoter::where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
-            'branches'    => Branch::where('company_id', $companyId)->orderBy('name')->get(),
-            'warehouses'  => Warehouse::where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
-            'session'     => $session,
-            'nextNumber'  => Sale::generateNumber($companyId),
+            'products'         => $products,
+            'clients'          => Client::where('company_id', $companyId)->orderBy('name')->get(),
+            'promoters'        => Promoter::where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
+            'session'          => $session,
+            'assignedRegister' => $assignedRegister,
+            'branch'           => $branch,
+            'warehouse'        => $warehouse,
+            'nextNumber'       => Sale::generateNumber($companyId),
         ]);
     }
 
@@ -51,8 +61,6 @@ class PosController extends Controller
             'client_id'        => 'nullable|exists:clients,id',
             'client_name'      => 'nullable|string|max:255',
             'promoter_id'      => 'nullable|exists:promoters,id',
-            'branch_id'        => 'nullable|exists:branches,id',
-            'warehouse_id'     => 'nullable|exists:warehouses,id',
             'payment_method'   => 'required|in:cash,card,transfer,other',
             'discount'         => 'nullable|numeric|min:0',
             'tax'              => 'nullable|numeric|min:0',
@@ -65,8 +73,19 @@ class PosController extends Controller
 
         $companyId = $this->getCompanyId();
 
+        // El POS exige una caja abierta del usuario logueado.
+        $session = $this->userOpenSession($companyId);
+        if (!$session) {
+            return back()->withInput()->with('error', 'Debes abrir tu caja antes de registrar una venta en el POS.');
+        }
+
+        // Sucursal y almacén se obtienen de la caja del cajero (no del formulario).
+        $session->load('cashRegister.branch');
+        $branchId    = $session->cashRegister?->branch_id;
+        $warehouseId = $session->cashRegister?->branch?->warehouse_id;
+
         try {
-            $sale = DB::transaction(function () use ($validated, $companyId) {
+            $sale = DB::transaction(function () use ($validated, $companyId, $session, $branchId, $warehouseId) {
                 $subtotal = 0;
                 foreach ($validated['items'] as $item) {
                     $subtotal += $item['quantity'] * $item['unit_price'];
@@ -81,13 +100,14 @@ class PosController extends Controller
                     $clientName = Client::find($clientId)?->display_name;
                 }
 
-                $session = $this->activeSession($companyId);
-
-                // Validar stock antes de crear
+                // Validar stock contra el almacén de la caja
+                $itemProducts = Product::whereIn('id', collect($validated['items'])->pluck('product_id'))->get();
+                $whStocks = $warehouseId ? StockService::warehouseStocks($warehouseId, $itemProducts) : [];
                 foreach ($validated['items'] as $item) {
-                    $product = Product::find($item['product_id']);
-                    if ($product && $product->current_stock < $item['quantity']) {
-                        throw new \Exception("Stock insuficiente para {$product->name}.");
+                    $product = $itemProducts->firstWhere('id', (int) $item['product_id']);
+                    $available = $warehouseId ? (float) ($whStocks[$item['product_id']] ?? 0) : (float) ($product?->current_stock ?? 0);
+                    if ($product && $available < $item['quantity']) {
+                        throw new \Exception("Stock insuficiente para {$product->name} en el almacén de la caja (disponible: {$available}).");
                     }
                 }
 
@@ -98,8 +118,8 @@ class PosController extends Controller
                     'sale_date'       => now()->toDateString(),
                     'client_name'     => $clientName,
                     'promoter_id'     => $validated['promoter_id'] ?? null,
-                    'branch_id'       => $validated['branch_id'] ?? null,
-                    'warehouse_id'    => $validated['warehouse_id'] ?? null,
+                    'branch_id'       => $branchId,
+                    'warehouse_id'    => $warehouseId,
                     'cash_session_id' => $session?->id,
                     'payment_method'  => $validated['payment_method'],
                     'sale_type'       => 'cash',
@@ -123,8 +143,8 @@ class PosController extends Controller
                     ]);
 
                     Product::where('id', $item['product_id'])->decrement('current_stock', $item['quantity']);
-                    if (!empty($validated['warehouse_id'])) {
-                        StockService::adjust($companyId, (int) $validated['warehouse_id'], (int) $item['product_id'], -(float) $item['quantity']);
+                    if ($warehouseId) {
+                        StockService::adjust($companyId, (int) $warehouseId, (int) $item['product_id'], -(float) $item['quantity']);
                     }
                 }
 
@@ -169,21 +189,6 @@ class PosController extends Controller
             Log::error('Error en POS', ['message' => $e->getMessage(), 'file' => $e->getFile() . ':' . $e->getLine()]);
             return back()->withInput()->with('error', $e->getMessage());
         }
-    }
-
-    /** Sesión de caja abierta asignada al usuario actual, si existe. */
-    private function activeSession(?int $companyId): ?CashSession
-    {
-        if (!$companyId) {
-            return null;
-        }
-        $personal = Personal::where('user_id', auth()->id())->where('company_id', $companyId)->first();
-        if (!$personal) {
-            return null;
-        }
-        $register = CashRegister::where('assigned_personal_id', $personal->id)
-            ->where('company_id', $companyId)->where('active', true)->first();
-        return $register?->activeSession();
     }
 
     private function getCompanyId(): ?int

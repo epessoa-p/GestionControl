@@ -4,8 +4,30 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div><h1 class="mb-1"><i class="bi bi-cart3 text-primary me-2"></i>Ventas</h1><p class="text-muted mb-0">Registro y gestión de ventas</p></div>
-        <a href="{{ route('sales.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Nueva venta</a>
+        @if(!empty($openSession))
+            <a href="{{ route('sales.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Nueva venta</a>
+        @else
+            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Abre tu caja para poder vender">
+                <button class="btn btn-primary" disabled style="pointer-events:none;"><i class="bi bi-plus-lg me-1"></i> Nueva venta</button>
+            </span>
+        @endif
     </div>
+
+    @if(empty($openSession))
+    <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <strong>No tienes una caja abierta.</strong> Debes abrir tu caja antes de registrar ventas.
+        </div>
+        @if(!empty($assignedRegister))
+            <a href="{{ route('cash-registers.open-session-form', $assignedRegister) }}" class="btn btn-sm btn-warning">
+                <i class="bi bi-unlock-fill me-1"></i> Abrir mi caja · {{ $assignedRegister->name }}
+            </a>
+        @else
+            <a href="{{ route('cash-registers.index') }}" class="btn btn-sm btn-outline-secondary">Ver cajas</a>
+        @endif
+    </div>
+    @endif
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body py-2">

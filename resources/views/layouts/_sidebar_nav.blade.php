@@ -30,7 +30,8 @@
                || request()->routeIs('machinery.*')
                || request()->routeIs('cargos.*')
                || request()->routeIs('personal.*')
-               || request()->routeIs('document-templates.*');
+               || request()->routeIs('document-templates.*')
+               || request()->routeIs('system-reset.*');
     $currentCompany = $currentCompany ?? auth()->user()->getCurrentCompany();
 @endphp
 
@@ -491,6 +492,14 @@
                 <i class="bi bi-file-earmark-ruled"></i> Plantillas
             </a>
         </li>
+        @if(auth()->user()->is_super_admin)
+        <li class="nav-item">
+            <a class="nav-link app-link {{ request()->routeIs('system-reset.*') ? 'active' : '' }} text-danger"
+               href="{{ route('system-reset.index') }}">
+                <i class="bi bi-exclamation-octagon"></i> Reinicio de datos
+            </a>
+        </li>
+        @endif
     </ul>
 </div>
 </div>{{-- /sidebar-sec admin --}}

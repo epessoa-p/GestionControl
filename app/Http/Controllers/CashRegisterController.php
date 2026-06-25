@@ -185,7 +185,7 @@ class CashRegisterController extends Controller
                 'opened_by'        => auth()->id(),
             ]);
 
-            return redirect()->route('cash-registers.show', $cashRegister)->with('success', 'Caja abierta exitosamente.');
+            return back()->with('success', 'Caja abierta exitosamente.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
