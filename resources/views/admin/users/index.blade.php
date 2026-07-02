@@ -16,9 +16,10 @@
                     <th>Nombre</th>
                     <th>Email</th>
                     <th>Teléfono</th>
-                    <th>Rol</th>
+                    <th>Empresas / Rol</th>
+                    <th>Tipo</th>
                     <th>Estado</th>
-                    <th>Acciones</th>
+                    <th class="text-end">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -27,6 +28,21 @@
                         <td><strong>{{ $user->name }}</strong></td>
                         <td>{{ $user->email }}</td>
                         <td>{{ $user->phone ?? '-' }}</td>
+                        <td>
+                            @forelse($user->companies as $company)
+                                <span class="badge bg-light text-dark border me-1 mb-1 d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-building text-primary"></i>{{ $company->name }}
+                                    <span class="text-muted">·</span>
+                                    <span class="text-success">{{ $roleNames[$company->pivot->role_id] ?? '—' }}</span>
+                                </span>
+                            @empty
+                                @if($user->is_super_admin)
+                                    <span class="badge bg-danger-subtle text-danger"><i class="bi bi-globe me-1"></i>Acceso global</span>
+                                @else
+                                    <span class="text-muted small">Sin empresa asignada</span>
+                                @endif
+                            @endforelse
+                        </td>
                         <td>
                             @if($user->is_super_admin)
                                 <span class="badge bg-danger">Super Admin</span>
@@ -39,7 +55,7 @@
                                 {{ $user->active ? 'Activo' : 'Inactivo' }}
                             </span>
                         </td>
-                        <td>
+                        <td class="text-end">
                             <a href="{{ route('users.edit', $user) }}" class="btn btn-sm btn-warning">
                                 <i class="bi bi-pencil"></i>
                             </a>

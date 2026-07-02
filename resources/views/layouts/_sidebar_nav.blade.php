@@ -441,6 +441,8 @@
                     <i class="bi bi-building"></i> Empresas
                 </a>
             </li>
+        @endif
+        @if(auth()->user()->is_super_admin || auth()->user()->hasRoleInCompany('admin', $currentCompany))
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('roles.*') ? 'active' : '' }}"
                    href="{{ route('roles.index') }}">

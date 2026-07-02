@@ -196,6 +196,7 @@ class CashRegisterController extends Controller
 
     public function closeSession(Request $request, CashSession $cashSession)
     {
+        $this->authorizeSession($cashSession);
         if (!$cashSession->isOpen()) {
             return back()->with('error', 'Esta sesión ya está cerrada.');
         }
@@ -248,6 +249,7 @@ class CashRegisterController extends Controller
 
     public function sessionDetail(CashSession $cashSession)
     {
+        $this->authorizeSession($cashSession);
         $cashSession->load(['cashRegister', 'personal', 'openedBy', 'closedBy', 'movements.createdBy']);
         $companyId = $cashSession->cashRegister->company_id;
         $personals = Personal::where('company_id', $companyId)->where('active', true)->orderBy('full_name')->get();
@@ -260,6 +262,7 @@ class CashRegisterController extends Controller
 
     public function addMovement(Request $request, CashSession $cashSession)
     {
+        $this->authorizeSession($cashSession);
         if (!$cashSession->isOpen()) {
             return back()->with('error', 'No se pueden agregar movimientos a una sesión cerrada.');
         }
@@ -312,6 +315,16 @@ class CashRegisterController extends Controller
     private function authorizeRecord($record): void
     {
         if (!auth()->user()->is_super_admin && $record->company_id !== auth()->user()->getCurrentCompany()?->id) {
+            abort(403);
+        }
+    }
+
+    /** Autoriza el acceso a una sesión validando la empresa a través de su caja. */
+    private function authorizeSession(CashSession $cashSession): void
+    {
+        $cashSession->loadMissing('cashRegister');
+        if (!auth()->user()->is_super_admin
+            && $cashSession->cashRegister?->company_id !== auth()->user()->getCurrentCompany()?->id) {
             abort(403);
         }
     }

@@ -8,6 +8,20 @@
         <form action="{{ route('roles.store') }}" method="POST">
             @csrf
 
+            @if(auth()->user()->is_super_admin)
+            <div class="form-group mb-3">
+                <label for="company_id" class="form-label">Empresa <span class="text-danger">*</span></label>
+                <select id="company_id" name="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
+                    <option value="">— Selecciona una empresa —</option>
+                    @foreach($companies as $co)
+                        <option value="{{ $co->id }}" {{ (string)old('company_id') === (string)$co->id ? 'selected' : '' }}>{{ $co->name }}</option>
+                    @endforeach
+                </select>
+                @error('company_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <small class="text-muted">El rol pertenecerá solo a esta empresa.</small>
+            </div>
+            @endif
+
             <div class="form-group mb-3">
                 <label for="name" class="form-label">Nombre</label>
                 <input type="text" id="name" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name') }}" required>

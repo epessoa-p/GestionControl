@@ -28,6 +28,8 @@ class StoreUserRequest extends FormRequest
             'password' => [$userId ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
             'phone' => 'nullable|string|max:20',
             'is_super_admin' => 'sometimes|boolean',
+            'companies' => 'sometimes|array',
+            'companies.*' => 'nullable|exists:roles,id',
         ];
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCompanyRequest;
 use App\Models\Company;
+use App\Services\RoleProvisioner;
 
 class CompanyController extends Controller
 {
@@ -26,7 +27,10 @@ class CompanyController extends Controller
 
     public function store(StoreCompanyRequest $request)
     {
-        Company::create($request->validated());
+        $company = Company::create($request->validated());
+
+        // Sembrar los roles base de la empresa (admin) con sus permisos.
+        RoleProvisioner::seedDefaultsForCompany($company->id);
 
         return redirect()->route('companies.index')->with('success', 'Empresa creada exitosamente');
     }
